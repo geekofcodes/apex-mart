@@ -1,0 +1,204 @@
+@import "tailwindcss";
+
+/* ======================================================
+   ApexMart Design Tokens (Tailwind v4 – Config-less)
+   ====================================================== */
+
+@theme {
+  /* Brand */
+  --color-primary: #2563eb;        /* Blue 600 */
+  --color-primary-hover: #1d4ed8;  /* Blue 700 */
+  --color-accent: #22c55e;         /* Green 500 */
+
+  /* Neutrals */
+  --color-background: #f9fafb;     /* Gray 50 */
+  --color-surface: #ffffff;        /* White */
+  --color-border: #e5e7eb;         /* Gray 200 */
+
+  /* Text */
+  --color-text-primary: #111827;   /* Gray 900 */
+  --color-text-muted: #6b7280;     /* Gray 500 */
+
+  /* Semantic */
+  --color-success: #16a34a;
+  --color-success-light: #dcfce7;
+  --color-success-dark: #166534;
+  
+  --color-warning: #f59e0b;
+  --color-warning-light: #fef3c7;
+  --color-warning-dark: #92400e;
+
+  --color-error: #dc2626;
+  --color-error-light: #fee2e2;
+  --color-error-dark: #991b1b;
+
+  --color-info: #0284c7;
+  --color-info-light: #e0f2fe;
+  --color-info-dark: #075985;
+
+  /* Extended Tokens */
+  --color-background-alt: #f3f4f6; /* Gray 100 */
+  --color-text-disabled: #9ca3af;  /* Gray 400 */
+  --color-primary-light: #eff6ff;  /* Blue 50 */
+  --color-border-highlight: #bfdbfe; /* Blue 200 */
+
+  /* Layout Specific */
+  --color-sidebar-bg: #111827;     /* Gray 900 */
+  --color-sidebar-text: #ffffff;   /* White */
+  --color-sidebar-hover: #1f2937;  /* Gray 800 */
+  --color-footer-bg: #111827;      /* Gray 900 */
+  --color-hero-bg: #111827;        /* Gray 900 */
+}
+
+/* ======================================================
+   Base & Global Styles
+   ====================================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply antialiased
+         bg-(--color-background)
+         text-(--color-text-primary);
+}
+
+/* ======================================================
+   Focus Styles (Accessibility)
+   ====================================================== */
+
+*:focus-visible {
+  @apply outline-none ring-2 ring-(--color-primary) ring-offset-2;
+}
+
+/* ======================================================
+   Custom Scrollbar
+   ====================================================== */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-muted);
+}
+
+/* ======================================================
+   Layout Utilities
+   ====================================================== */
+
+.container-custom {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* ======================================================
+   Buttons
+   ====================================================== */
+
+.btn-primary {
+  @apply bg-(--color-primary)
+         text-white
+         px-6 py-2.5
+         rounded-lg
+         font-medium
+         transition-colors duration-200
+         hover:bg-(--color-primary-hover)
+         focus-visible:ring-(--color-primary);
+}
+
+.btn-secondary {
+  @apply bg-(--color-border)
+         text-(--color-text-primary)
+         px-6 py-2.5
+         rounded-lg
+         font-medium
+         transition-colors duration-200
+         hover:bg-gray-300;
+}
+
+.btn-outline {
+  @apply border-2 border-(--color-primary)
+         text-(--color-primary)
+         px-6 py-2.5
+         rounded-lg
+         font-medium
+         transition-colors duration-200
+         hover:bg-(--color-background);
+}
+
+/* ======================================================
+   Inputs
+   ====================================================== */
+
+.input-field {
+  @apply w-full
+         px-4 py-2.5
+         border border-(--color-border)
+         rounded-lg
+         bg-(--color-surface)
+         transition-all duration-200
+         focus:border-transparent
+         focus:ring-2 focus:ring-(--color-primary);
+}
+
+/* ======================================================
+   Cards & Surfaces
+   ====================================================== */
+
+.card {
+  @apply bg-(--color-surface)
+         border border-(--color-border)
+         rounded-xl
+         shadow-sm
+         p-6;
+}
+
+/* ======================================================
+   Animations
+   ====================================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ======================================================
+   Loading Skeleton
+   ====================================================== */
+
+.skeleton {
+  @apply animate-pulse
+         bg-(--color-border)
+         rounded;
+}
+
+/* ======================================================
+   Hover Effects
+   ====================================================== */
+
+.hover-lift {
+  @apply transition-transform duration-200
+         hover:-translate-y-1
+         hover:shadow-lg;
+}
