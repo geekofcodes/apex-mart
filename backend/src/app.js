@@ -23,8 +23,18 @@ app.set("trust proxy", 1);
 app.use(helmet());
 
 // CORS CONFIG
+const allowedOrigins = process.env.CORS_ORIGIN.split(",");
+
 const corsOptions = {
-  origin: "http://localhost:5173",
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS"));
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -53,6 +63,12 @@ app.use(compression());
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path}`);
   next();
+});
+
+app.get("/", (req, res) => {
+  res.json({
+    message: "Apex Mart API is running 🚀",
+  });
 });
 
 // Health check
