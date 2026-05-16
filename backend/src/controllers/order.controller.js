@@ -15,7 +15,7 @@ import { HTTP_STATUS } from "../utils/constants.js";
  * @access  Private
  */
 export const placeOrder = asyncHandler(async (req, res) => {
-  const order = await orderService.placeOrder(req.user._id, req.body);
+  const order = await orderService.placeOrder(req.user.id, req.body);
 
   return ApiResponse.success(
     res,
@@ -32,7 +32,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
  */
 export const getUserOrders = asyncHandler(async (req, res) => {
   const { orders, pagination } = await orderService.getUserOrders(
-    req.user._id,
+    req.user.id,
     req.query,
   );
 
@@ -53,7 +53,7 @@ export const getUserOrders = asyncHandler(async (req, res) => {
 export const getOrderById = asyncHandler(async (req, res) => {
   const order = await orderService.getOrderById(
     req.params.id,
-    req.user._id,
+    req.user.id,
     req.user.role,
   );
 
@@ -130,7 +130,7 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const cancelOrder = asyncHandler(async (req, res) => {
-  const order = await orderService.cancelOrder(req.params.id, req.user._id);
+  const order = await orderService.cancelOrder(req.params.id, req.user.id);
 
   return ApiResponse.success(
     res,

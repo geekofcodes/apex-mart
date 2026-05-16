@@ -12,7 +12,7 @@ import asyncHandler from "../utils/asyncHandler.js";
  * Get current user profile
  */
 export const getProfile = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user.id;
   const user = await authService.getProfile(userId);
 
   return ApiResponse.success(
@@ -26,7 +26,7 @@ export const getProfile = asyncHandler(async (req, res) => {
  * Update user profile
  */
 export const updateProfile = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user.id;
   const user = await authService.updateProfile(userId, req.body);
 
   return ApiResponse.success(
@@ -40,7 +40,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
  * Change password
  */
 export const changePassword = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user.id;
   const { currentPassword, newPassword } = req.body;
   await authService.changePassword(userId, currentPassword, newPassword);
 

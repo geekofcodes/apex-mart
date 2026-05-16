@@ -57,7 +57,7 @@ export const isOwnerOrAdmin = (req, res, next) => {
   }
 
   const resourceUserId = req.params.userId || req.params.id;
-  const isOwner = req.user._id.toString() === resourceUserId;
+  const isOwner = req.user.id.toString() === resourceUserId;
   const isAdmin = req.user.role === USER_ROLES.ADMIN;
 
   if (!isOwner && !isAdmin) {

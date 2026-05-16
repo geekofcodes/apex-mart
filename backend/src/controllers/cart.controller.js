@@ -15,7 +15,7 @@ import { HTTP_STATUS } from "../utils/constants.js";
  * @access  Private
  */
 export const getCart = asyncHandler(async (req, res) => {
-  const cart = await cartService.getCart(req.user._id);
+  const cart = await cartService.getCart(req.user.id);
 
   return ApiResponse.success(
     res,
@@ -33,7 +33,7 @@ export const addItemToCart = asyncHandler(async (req, res) => {
   const { productId, quantity } = req.body;
 
   const cart = await cartService.addItemToCart(
-    req.user._id,
+    req.user.id,
     productId,
     quantity,
   );
@@ -55,7 +55,7 @@ export const updateItemQuantity = asyncHandler(async (req, res) => {
   const { quantity } = req.body;
 
   const cart = await cartService.updateItemQuantity(
-    req.user._id,
+    req.user.id,
     productId,
     quantity,
   );
@@ -75,7 +75,7 @@ export const updateItemQuantity = asyncHandler(async (req, res) => {
 export const removeItemFromCart = asyncHandler(async (req, res) => {
   const { productId } = req.params;
 
-  const cart = await cartService.removeItemFromCart(req.user._id, productId);
+  const cart = await cartService.removeItemFromCart(req.user.id, productId);
 
   return ApiResponse.success(
     res,
@@ -90,7 +90,7 @@ export const removeItemFromCart = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const clearCart = asyncHandler(async (req, res) => {
-  const cart = await cartService.clearCart(req.user._id);
+  const cart = await cartService.clearCart(req.user.id);
 
   return ApiResponse.success(
     res,
@@ -105,7 +105,7 @@ export const clearCart = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const validateCart = asyncHandler(async (req, res) => {
-  const validation = await cartService.validateCart(req.user._id);
+  const validation = await cartService.validateCart(req.user.id);
 
   return ApiResponse.success(res, "Cart validated successfully", {
     isValid: validation.isValid,

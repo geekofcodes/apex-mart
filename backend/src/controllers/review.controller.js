@@ -14,7 +14,7 @@ import { HTTP_STATUS } from "../utils/constants.js";
  * @access  Private
  */
 export const createReview = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user.id;
   const review = await reviewService.createReview(userId, req.body);
 
   return ApiResponse.success(
@@ -81,7 +81,7 @@ export const getReviewById = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const getUserReviews = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user.id;
   const result = await reviewService.getUserReviews(userId, req.query);
 
   return ApiResponse.success(
@@ -100,7 +100,7 @@ export const getUserReviews = asyncHandler(async (req, res) => {
  */
 export const updateReview = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user._id;
+  const userId = req.user.id;
   const review = await reviewService.updateReview(id, userId, req.body);
 
   return ApiResponse.success(
@@ -117,7 +117,7 @@ export const updateReview = asyncHandler(async (req, res) => {
  */
 export const deleteReview = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user._id;
+  const userId = req.user.id;
   const userRole = req.user.role;
   await reviewService.deleteReview(id, userId, userRole);
 
