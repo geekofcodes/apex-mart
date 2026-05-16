@@ -105,13 +105,11 @@ const Categories = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {categories.map((category, index) => (
             <motion.div
-              key={category._id || category.id}
+              key={category.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.1 }}
-              onClick={() =>
-                navigate(`/products?category=${category._id || category.id}`)
-              }
+              onClick={() => navigate(`/products?category=${category.id}`)}
               className="card p-6 cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105 group"
             >
               <div className="flex items-center justify-between">

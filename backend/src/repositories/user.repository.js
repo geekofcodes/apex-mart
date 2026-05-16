@@ -36,7 +36,11 @@ class UserRepository {
    * @param {boolean} includePassword - also return hashed password
    * @param {boolean} includeRefreshToken
    */
-  async findByEmail(email, includePassword = false, includeRefreshToken = false) {
+  async findByEmail(
+    email,
+    includePassword = false,
+    includeRefreshToken = false,
+  ) {
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
       select: {
@@ -194,7 +198,7 @@ class UserRepository {
       totalUsers,
       activeUsers,
       usersByRole: byRole.map((r) => ({
-        _id: r.role.toLowerCase(),
+        id: r.role.toLowerCase(),
         count: r._count.role,
       })),
     };

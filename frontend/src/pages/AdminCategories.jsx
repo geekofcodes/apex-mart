@@ -81,7 +81,7 @@ const AdminCategories = () => {
               ) : (
                 categories.map((cat) => (
                   <tr
-                    key={cat._id || cat.id}
+                    key={cat.id}
                     className="hover:bg-(--color-background-alt)/50 transition-colors cursor-pointer"
                   >
                     <td className="px-6 py-4">
@@ -93,7 +93,7 @@ const AdminCategories = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-xs font-mono text-(--color-text-muted)">
-                      {cat._id || cat.id}
+                      {cat.id}
                     </td>
                     <td className="px-6 py-4 text-(--color-text-muted)">
                       {cat.parentCategoryId || "Root"}

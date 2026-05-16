@@ -12,7 +12,7 @@ class OrderDTO {
     if (!order) return null;
 
     return {
-      id: order._id,
+      id: order.id,
       user: UserDTO.userResponse(order.user),
       items: order.items.map((item) => ({
         product: item.product
@@ -45,7 +45,7 @@ class OrderDTO {
   static orderListResponse(order) {
     if (!order) return null;
     return {
-      id: order._id,
+      id: order.id,
       totalPrice: order.totalPrice,
       totalAmount: order.totalPrice, // Frontend compatibility
       orderStatus: order.orderStatus,

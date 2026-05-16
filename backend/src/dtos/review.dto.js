@@ -9,18 +9,18 @@ class ReviewDTO {
     if (!review) return null;
 
     return {
-      id: review._id,
+      id: review.id,
       rating: review.rating,
       comment: review.comment,
       user: review.user
         ? {
-            id: review.user._id,
+            id: review.user.id,
             name: review.user.name,
           }
         : null,
       product: review.product
         ? {
-            id: review.product._id,
+            id: review.product.id,
             name: review.product.name,
           }
         : null,

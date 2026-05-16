@@ -8,11 +8,17 @@ class CategoryRepository {
     if (!cat) return null;
     const { id, parentId, parent, children, ...rest } = cat;
     return {
-      _id: id,
+      id: id,
       id,
       ...rest,
       parentCategory: parent
-        ? { _id: parent.id, id: parent.id, name: parent.name, slug: parent.slug, level: parent.level }
+        ? {
+            id: parent.id,
+            id: parent.id,
+            name: parent.name,
+            slug: parent.slug,
+            level: parent.level,
+          }
         : null,
       ...(children !== undefined
         ? { subcategories: children.map((c) => this.#normalise(c)) }
@@ -23,7 +29,9 @@ class CategoryRepository {
   async findById(id) {
     const cat = await prisma.category.findUnique({
       where: { id },
-      include: { parent: { select: { id: true, name: true, slug: true, level: true } } },
+      include: {
+        parent: { select: { id: true, name: true, slug: true, level: true } },
+      },
     });
     return this.#normalise(cat);
   }
@@ -31,7 +39,9 @@ class CategoryRepository {
   async findBySlug(slug) {
     const cat = await prisma.category.findUnique({
       where: { slug },
-      include: { parent: { select: { id: true, name: true, slug: true, level: true } } },
+      include: {
+        parent: { select: { id: true, name: true, slug: true, level: true } },
+      },
     });
     return this.#normalise(cat);
   }
@@ -42,7 +52,8 @@ class CategoryRepository {
    */
   async findMany({ parentId, level, isActive = true } = {}) {
     const where = { isActive };
-    if (parentId !== undefined) where.parentId = parentId === "null" ? null : parentId;
+    if (parentId !== undefined)
+      where.parentId = parentId === "null" ? null : parentId;
     if (level !== undefined) where.level = Number(level);
 
     const cats = await prisma.category.findMany({
@@ -86,7 +97,9 @@ class CategoryRepository {
         displayOrder: data.displayOrder ?? 0,
         parentId: data.parentCategory || null,
       },
-      include: { parent: { select: { id: true, name: true, slug: true, level: true } } },
+      include: {
+        parent: { select: { id: true, name: true, slug: true, level: true } },
+      },
     });
     return this.#normalise(cat);
   }
@@ -95,17 +108,21 @@ class CategoryRepository {
     const updateData = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.slug !== undefined) updateData.slug = data.slug;
-    if (data.description !== undefined) updateData.description = data.description;
+    if (data.description !== undefined)
+      updateData.description = data.description;
     if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
     if (data.level !== undefined) updateData.level = data.level;
-    if (data.displayOrder !== undefined) updateData.displayOrder = data.displayOrder;
+    if (data.displayOrder !== undefined)
+      updateData.displayOrder = data.displayOrder;
     if (data.parentCategory !== undefined)
       updateData.parentId = data.parentCategory || null;
 
     const cat = await prisma.category.update({
       where: { id },
       data: updateData,
-      include: { parent: { select: { id: true, name: true, slug: true, level: true } } },
+      include: {
+        parent: { select: { id: true, name: true, slug: true, level: true } },
+      },
     });
     return this.#normalise(cat);
   }

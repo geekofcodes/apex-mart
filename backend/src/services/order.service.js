@@ -32,7 +32,7 @@ class OrderService {
    */
   #assertOrderOwnership(order, userId, userRole) {
     if (userRole === "ADMIN") return;
-    const ownerId = order.user?.id ?? order.user;          // normalised shape has user.id
+    const ownerId = order.user?.id ?? order.user; // normalised shape has user.id
     if (!ownerId || ownerId.toString() !== userId.toString()) {
       throw new AppError(
         "You do not have permission to access this order",
@@ -46,13 +46,16 @@ class OrderService {
    */
   #validateShippingAddress(addr) {
     if (!addr || typeof addr !== "object") {
-      throw new AppError("Shipping address is required", HTTP_STATUS.BAD_REQUEST);
+      throw new AppError(
+        "Shipping address is required",
+        HTTP_STATUS.BAD_REQUEST,
+      );
     }
     const missing = [];
-    if (!addr.fullName?.trim())     missing.push("fullName");
+    if (!addr.fullName?.trim()) missing.push("fullName");
     if (!addr.addressLine1?.trim()) missing.push("addressLine1");
-    if (!addr.city?.trim())         missing.push("city");
-    if (!addr.country?.trim())      missing.push("country");
+    if (!addr.city?.trim()) missing.push("city");
+    if (!addr.country?.trim()) missing.push("country");
 
     if (missing.length > 0) {
       throw new AppError(
@@ -66,7 +69,16 @@ class OrderService {
    * Validate payment method against the allowed list.
    */
   #validatePaymentMethod(method) {
-    const ALLOWED = new Set(["COD", "RAZORPAY", "STRIPE", "PAYPAL", "cod", "razorpay", "stripe", "paypal"]);
+    const ALLOWED = new Set([
+      "COD",
+      "RAZORPAY",
+      "STRIPE",
+      "PAYPAL",
+      "cod",
+      "razorpay",
+      "stripe",
+      "paypal",
+    ]);
     if (!method || !ALLOWED.has(method)) {
       throw new AppError(
         `Invalid payment method. Accepted: COD, RAZORPAY, STRIPE, PAYPAL`,
@@ -114,12 +126,12 @@ class OrderService {
       }
 
       orderItems.push({
-        product:  product.id,                  // Prisma native id — no _id (Rule 8)
-        name:     product.name || "Unknown Product",
+        product: product.id, // Prisma native id — no _id (Rule 8)
+        name: product.name || "Unknown Product",
         quantity: item.quantity,
         // NOTE: item.price is passed but the repository IGNORES it.
         // All pricing is re-fetched from the DB inside the transaction.
-        image:    imageUrl,
+        image: imageUrl,
       });
     }
 
@@ -136,10 +148,10 @@ class OrderService {
     try {
       order = await orderRepository.create(
         userId,
-        cart._id || cart.id,
+        cart.id || cart.id,
         shippingAddress,
         paymentMethod,
-        orderItems
+        orderItems,
       );
     } catch (err) {
       // Surface repository-thrown business errors as 400 Bad Request.
@@ -167,7 +179,7 @@ class OrderService {
     const {
       skip,
       limit: validLimit,
-      page:  validPage,
+      page: validPage,
     } = Pagination.getPaginationParams(page, limit);
 
     const { orders, total } = await orderRepository.findByUserId(userId, {
@@ -186,7 +198,7 @@ class OrderService {
     const {
       skip,
       limit: validLimit,
-      page:  validPage,
+      page: validPage,
     } = Pagination.getPaginationParams(page, limit);
 
     const { orders, total } = await orderRepository.findAll({
@@ -229,8 +241,8 @@ class OrderService {
     const updateData = { orderStatus: status };
 
     if (status === ORDER_STATUS.DELIVERED) {
-      updateData.deliveredAt    = new Date();
-      updateData.paymentStatus  = PAYMENT_STATUS.COMPLETED;
+      updateData.deliveredAt = new Date();
+      updateData.paymentStatus = PAYMENT_STATUS.COMPLETED;
     }
 
     return orderRepository.updateStatus(orderId, updateData);
@@ -245,12 +257,21 @@ class OrderService {
     if (!order) throw new AppError("Order not found", HTTP_STATUS.NOT_FOUND);
 
     // 1. Terminal State Lock (CRITICAL)
-    if (order.paymentStatus === PAYMENT_STATUS.REFUNDED || order.orderStatus === ORDER_STATUS.CANCELLED) {
-      throw new AppError("Order is in a terminal state. No further payment updates allowed.", HTTP_STATUS.BAD_REQUEST);
+    if (
+      order.paymentStatus === PAYMENT_STATUS.REFUNDED ||
+      order.orderStatus === ORDER_STATUS.CANCELLED
+    ) {
+      throw new AppError(
+        "Order is in a terminal state. No further payment updates allowed.",
+        HTTP_STATUS.BAD_REQUEST,
+      );
     }
 
     // 2. Webhook Idempotency Key
-    if (paymentGatewayData.gatewayEventId && order.payment?.gatewayEventId === paymentGatewayData.gatewayEventId) {
+    if (
+      paymentGatewayData.gatewayEventId &&
+      order.payment?.gatewayEventId === paymentGatewayData.gatewayEventId
+    ) {
       return order; // Duplicate event safely ignored
     }
 
@@ -266,7 +287,7 @@ class OrderService {
       if (order.paymentStatus !== PAYMENT_STATUS.PENDING) {
         throw new AppError(
           `Cannot transition payment status from ${order.paymentStatus} to ${paymentStatus}`,
-          HTTP_STATUS.BAD_REQUEST
+          HTTP_STATUS.BAD_REQUEST,
         );
       }
       targetOrderStatus = ORDER_STATUS.PROCESSING;
@@ -274,7 +295,7 @@ class OrderService {
       if (order.paymentStatus !== PAYMENT_STATUS.PENDING) {
         throw new AppError(
           `Cannot transition payment status from ${order.paymentStatus} to ${paymentStatus}`,
-          HTTP_STATUS.BAD_REQUEST
+          HTTP_STATUS.BAD_REQUEST,
         );
       }
       // FAILED -> remains PENDING
@@ -282,7 +303,7 @@ class OrderService {
       if (order.paymentStatus !== PAYMENT_STATUS.COMPLETED) {
         throw new AppError(
           `Cannot refund payment when current status is ${order.paymentStatus}`,
-          HTTP_STATUS.BAD_REQUEST
+          HTTP_STATUS.BAD_REQUEST,
         );
       }
       targetOrderStatus = ORDER_STATUS.CANCELLED;
@@ -324,7 +345,7 @@ class OrderService {
     if (!CANCELLABLE_STATUSES.has(order.orderStatus)) {
       throw new AppError(
         `Cannot cancel an order with status '${order.orderStatus}'. ` +
-        `Only pending or processing orders may be cancelled.`,
+          `Only pending or processing orders may be cancelled.`,
         HTTP_STATUS.BAD_REQUEST,
       );
     }

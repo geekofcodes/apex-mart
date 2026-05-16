@@ -6,34 +6,34 @@ import { ORDER_STATUS, PAYMENT_STATUS } from "../utils/constants.js";
  * Prisma enums are uppercase; service constants are lowercase strings.
  */
 const ORDER_STATUS_MAP = {
-  [ORDER_STATUS.PENDING]:    "PENDING",
-  [ORDER_STATUS.PROCESSING]: "CONFIRMED",   // 'processing' → CONFIRMED in DB
-  [ORDER_STATUS.SHIPPED]:    "SHIPPED",
-  [ORDER_STATUS.DELIVERED]:  "DELIVERED",
-  [ORDER_STATUS.CANCELLED]:  "CANCELLED",
-  [ORDER_STATUS.REFUNDED]:   "CANCELLED",   // fallback — no REFUNDED enum
+  [ORDER_STATUS.PENDING]: "PENDING",
+  [ORDER_STATUS.PROCESSING]: "CONFIRMED", // 'processing' → CONFIRMED in DB
+  [ORDER_STATUS.SHIPPED]: "SHIPPED",
+  [ORDER_STATUS.DELIVERED]: "DELIVERED",
+  [ORDER_STATUS.CANCELLED]: "CANCELLED",
+  [ORDER_STATUS.REFUNDED]: "CANCELLED", // fallback — no REFUNDED enum
 };
 
 const PAYMENT_STATUS_MAP = {
-  [PAYMENT_STATUS.PENDING]:   "PENDING",
-  [PAYMENT_STATUS.COMPLETED]: "PAID",       // 'completed' → PAID in DB
-  [PAYMENT_STATUS.FAILED]:    "FAILED",
-  [PAYMENT_STATUS.REFUNDED]:  "REFUNDED",
+  [PAYMENT_STATUS.PENDING]: "PENDING",
+  [PAYMENT_STATUS.COMPLETED]: "PAID", // 'completed' → PAID in DB
+  [PAYMENT_STATUS.FAILED]: "FAILED",
+  [PAYMENT_STATUS.REFUNDED]: "REFUNDED",
 };
 
 /** Reverse maps: Prisma enum → service constant (used in #normalise) */
 const ORDER_STATUS_REVERSE = {
-  PENDING:   ORDER_STATUS.PENDING,
+  PENDING: ORDER_STATUS.PENDING,
   CONFIRMED: ORDER_STATUS.PROCESSING,
-  SHIPPED:   ORDER_STATUS.SHIPPED,
+  SHIPPED: ORDER_STATUS.SHIPPED,
   DELIVERED: ORDER_STATUS.DELIVERED,
   CANCELLED: ORDER_STATUS.CANCELLED,
 };
 
 const PAYMENT_STATUS_REVERSE = {
-  PENDING:  PAYMENT_STATUS.PENDING,
-  PAID:     PAYMENT_STATUS.COMPLETED,
-  FAILED:   PAYMENT_STATUS.FAILED,
+  PENDING: PAYMENT_STATUS.PENDING,
+  PAID: PAYMENT_STATUS.COMPLETED,
+  FAILED: PAYMENT_STATUS.FAILED,
   REFUNDED: PAYMENT_STATUS.REFUNDED,
 };
 
@@ -46,7 +46,7 @@ const VALID_PAYMENT_METHODS = new Set(["COD", "RAZORPAY", "STRIPE", "PAYPAL"]);
  * Uniqueness is additionally enforced by the DB unique constraint on orderNumber.
  */
 function generateOrderNumber() {
-  const ts   = Date.now().toString();
+  const ts = Date.now().toString();
   const rand = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
   return `ORD-${ts}-${rand}`;
 }
@@ -64,8 +64,8 @@ function assertProductIdIsString(productId, index) {
   if (typeof productId !== "string" || productId.trim() === "") {
     throw new Error(
       `Order item at index ${index} has an invalid product id ` +
-      `(got ${productId === null ? "null" : typeof productId}). ` +
-      `Expected a non-empty string.`
+        `(got ${productId === null ? "null" : typeof productId}). ` +
+        `Expected a non-empty string.`,
     );
   }
 }
@@ -120,25 +120,25 @@ class OrderRepository {
   #include = {
     orderItems: {
       select: {
-        id:                  true,
-        productId:           true,
+        id: true,
+        productId: true,
         productNameSnapshot: true,
-        imageSnapshot:       true,
-        quantity:            true,
-        priceSnapshot:       true,
+        imageSnapshot: true,
+        quantity: true,
+        priceSnapshot: true,
       },
     },
     shippingAddress: {
       select: {
-        id:           true,
-        fullName:     true,
-        phone:        true,
+        id: true,
+        fullName: true,
+        phone: true,
         addressLine1: true,
         addressLine2: true,
-        city:         true,
-        state:        true,
-        pincode:      true,
-        country:      true,
+        city: true,
+        state: true,
+        pincode: true,
+        country: true,
       },
     },
     user: { select: { id: true, name: true, email: true } },
@@ -153,66 +153,72 @@ class OrderRepository {
     const addr = order.shippingAddress;
 
     return {
-      _id:         order.id,
-      id:          order.id,
+      id: order.id,
+      id: order.id,
       orderNumber: order.orderNumber,
 
       user: order.user
         ? {
-            _id:   order.user.id,
-            id:    order.user.id,
-            name:  order.user.name,
+            id: order.user.id,
+            id: order.user.id,
+            name: order.user.name,
             email: order.user.email,
           }
         : order.userId,
 
       items: (order.orderItems ?? []).map((i) => ({
-        _id:      i.id,
-        product:  i.productId,
-        name:     i.productNameSnapshot,
-        image:    i.imageSnapshot ?? "",
+        id: i.id,
+        product: i.productId,
+        name: i.productNameSnapshot,
+        image: i.imageSnapshot ?? "",
         quantity: i.quantity,
-        price:    i.priceSnapshot,   // always DB-sourced; never client-supplied
+        price: i.priceSnapshot, // always DB-sourced; never client-supplied
       })),
 
       shippingAddress: addr
         ? {
-            fullName:     addr.fullName     ?? "",
-            phone:        addr.phone        ?? "",
+            fullName: addr.fullName ?? "",
+            phone: addr.phone ?? "",
             addressLine1: addr.addressLine1 ?? "",
             addressLine2: addr.addressLine2 ?? null,
-            city:         addr.city         ?? "",
-            state:        addr.state        ?? "",
-            postalCode:   addr.pincode      ?? "",
-            country:      addr.country      ?? "India",
+            city: addr.city ?? "",
+            state: addr.state ?? "",
+            postalCode: addr.pincode ?? "",
+            country: addr.country ?? "India",
           }
         : null,
 
       paymentMethod: order.paymentMethod?.toLowerCase() ?? "cod",
-      itemsPrice:    order.itemsPrice,
-      taxPrice:      order.taxPrice,
+      itemsPrice: order.itemsPrice,
+      taxPrice: order.taxPrice,
       shippingPrice: order.shippingPrice,
-      totalPrice:    order.totalPrice,
+      totalPrice: order.totalPrice,
 
-      paymentStatus: PAYMENT_STATUS_REVERSE[order.paymentStatus] ?? order.paymentStatus?.toLowerCase(),
-      orderStatus:   ORDER_STATUS_REVERSE[order.orderStatus]     ?? order.orderStatus?.toLowerCase(),
+      paymentStatus:
+        PAYMENT_STATUS_REVERSE[order.paymentStatus] ??
+        order.paymentStatus?.toLowerCase(),
+      orderStatus:
+        ORDER_STATUS_REVERSE[order.orderStatus] ??
+        order.orderStatus?.toLowerCase(),
 
-      payment: order.payment ? {
-        transactionId: order.payment.transactionId,
-        gatewayEventId: order.payment.gatewayEventId,
-        paymentGatewayId: order.payment.paymentGatewayId,
-        amount: order.payment.amount,
-        status: order.payment.status,
-        method: order.payment.paymentMethod,
-        paidAt: order.payment.paidAt,
-        createdAt: order.payment.createdAt,
-        updatedAt: order.payment.updatedAt,
-      } : null,
+      payment: order.payment
+        ? {
+            transactionId: order.payment.transactionId,
+            gatewayEventId: order.payment.gatewayEventId,
+            paymentGatewayId: order.payment.paymentGatewayId,
+            amount: order.payment.amount,
+            status: order.payment.status,
+            method: order.payment.paymentMethod,
+            paidAt: order.payment.paidAt,
+            createdAt: order.payment.createdAt,
+            updatedAt: order.payment.updatedAt,
+          }
+        : null,
 
-      paidAt:      order.paidAt      ?? null,
+      paidAt: order.paidAt ?? null,
       deliveredAt: order.deliveredAt ?? null,
-      createdAt:   order.createdAt,
-      updatedAt:   order.updatedAt,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
     };
   }
 
@@ -232,146 +238,145 @@ class OrderRepository {
   async create(userId, cartId, shippingAddress, paymentMethod, orderItems) {
     // ── Pre-flight: validate payment method ────────────────────────────────
     const prismaPaymentMethod = paymentMethod?.toUpperCase() ?? "COD";
-    const validPaymentMethod  = VALID_PAYMENT_METHODS.has(prismaPaymentMethod)
+    const validPaymentMethod = VALID_PAYMENT_METHODS.has(prismaPaymentMethod)
       ? prismaPaymentMethod
       : "COD";
 
     // ── Pre-flight: Rule 5 — ID Safety ────────────────────────────────────
     // Validate every product id before entering the transaction.
     // This catches undefined/null/number ids without touching the DB.
-    orderItems.forEach((item, idx) => assertProductIdIsString(item.product, idx));
+    orderItems.forEach((item, idx) =>
+      assertProductIdIsString(item.product, idx),
+    );
 
     // Generate order number; DB unique constraint acts as final safety net.
     let orderNumber = generateOrderNumber();
 
-    const order = await prisma.$transaction(async (tx) => {
-      const verifiedItems = [];
+    const order = await prisma.$transaction(
+      async (tx) => {
+        const verifiedItems = [];
 
-      // ── Step 1: Atomic stock validate + decrement (one query per item) ────
-      //
-      // Rule 2 (Single Fetch): We fetch the product ONCE via findUniqueOrThrow.
-      // That single fetch gives us:  stock (for the conditional check), price,
-      // discountPrice, and title. All are reused below — no second round-trip.
-      //
-      // Rule 3 (Atomic Stock): After the read we perform a conditional updateMany:
-      //   UPDATE products SET stock -= N WHERE id = ? AND stock >= N
-      // If count === 0, the product either disappeared or has insufficient stock.
-      // We throw immediately, rolling back the whole transaction.
-      //
-      for (const item of orderItems) {
-        // Single authoritative read — supplies BOTH pricing and stock data
-        let product;
-        try {
-          product = await tx.product.findUniqueOrThrow({
-            where:  { id: item.product },
-            select: { id: true, title: true, price: true, discountPrice: true, stock: true, isActive: true },
+        // ── Step 1: Atomic stock validate + decrement (one query per item) ────
+        //
+        // Rule 2 (Single Fetch): We fetch the product ONCE via findUniqueOrThrow.
+        // That single fetch gives us:  stock (for the conditional check), price,
+        // discountPrice, and title. All are reused below — no second round-trip.
+        //
+        // Rule 3 (Atomic Stock): After the read we perform a conditional updateMany:
+        //   UPDATE products SET stock -= N WHERE id = ? AND stock >= N
+        // If count === 0, the product either disappeared or has insufficient stock.
+        // We throw immediately, rolling back the whole transaction.
+        //
+        for (const item of orderItems) {
+          // Single authoritative read — supplies BOTH pricing and stock data
+          let product;
+          try {
+            product = await tx.product.findUniqueOrThrow({
+              where: { id: item.product },
+              select: {
+                id: true,
+                title: true,
+                price: true,
+                discountPrice: true,
+                stock: true,
+                isActive: true,
+              },
+            });
+          } catch {
+            throw new Error(`Product '${item.product}' no longer exists`);
+          }
+
+          if (!product.isActive) {
+            throw new Error(
+              `Product "${product.title}" is no longer available`,
+            );
+          }
+
+          // Atomic conditional decrement — no separate check+update window
+          const updated = await tx.product.updateMany({
+            where: {
+              id: item.product,
+              stock: { gte: item.quantity }, // condition: stock must cover quantity
+            },
+            data: { stock: { decrement: item.quantity } },
           });
-        } catch {
-          throw new Error(`Product '${item.product}' no longer exists`);
+
+          if (updated.count === 0) {
+            // The condition failed: stock < quantity (between read and update,
+            // another transaction decremented it — classic race condition caught).
+            // Re-fetch current stock just for an accurate error message
+            const current = await tx.product.findUnique({
+              where: { id: item.product },
+              select: { stock: true },
+            });
+
+            throw new Error(
+              `Insufficient stock for "${product.title}". ` +
+                `Requested: ${item.quantity}, available: ${current?.stock ?? 0}`,
+            );
+          }
+
+          // Rule 1 (DB-Driven Pricing): actualPrice comes ONLY from DB.
+          // discountPrice takes precedence if set; otherwise fall back to price.
+          const actualPrice = product.discountPrice ?? product.price;
+
+          verifiedItems.push({
+            productId: product.id, // Prisma native id — no conversion
+            productNameSnapshot: product.title, // from DB, not from item.name
+            imageSnapshot: item.image ?? null,
+            quantity: item.quantity,
+            priceSnapshot: actualPrice, // DB-authoritative, immutable snapshot
+          });
         }
 
-        if (!product.isActive) {
-          throw new Error(`Product "${product.title}" is no longer available`);
-        }
-
-        // Atomic conditional decrement — no separate check+update window
-        const updated = await tx.product.updateMany({
-          where: {
-            id:    item.product,
-            stock: { gte: item.quantity },  // condition: stock must cover quantity
-          },
-          data: { stock: { decrement: item.quantity } },
-        });
-
-        if (updated.count === 0) {
-          // The condition failed: stock < quantity (between read and update,
-          // another transaction decremented it — classic race condition caught).
-          // Re-fetch current stock just for an accurate error message
-          const current = await tx.product.findUnique({
-            where: { id: item.product },
-            select: { stock: true }
-          });
-
+        // ── Rule 6: Empty Order Guard ──────────────────────────────────────────
+        // If every item failed (all were inactive/OOS), verifiedItems is empty.
+        // We must NOT create an order with zero items.
+        if (verifiedItems.length === 0) {
           throw new Error(
-            `Insufficient stock for "${product.title}". ` +
-            `Requested: ${item.quantity}, available: ${current?.stock ?? 0}`
+            "No valid items remain after stock validation. Order cannot be created.",
           );
         }
 
-        // Rule 1 (DB-Driven Pricing): actualPrice comes ONLY from DB.
-        // discountPrice takes precedence if set; otherwise fall back to price.
-        const actualPrice = product.discountPrice ?? product.price;
+        // ── Step 2: Compute totals from DB-verified prices ONLY ───────────────
+        //
+        // Rule 1 (strict): itemsPrice and totalPrice are derived SOLELY from
+        // the priceSnapshot values we just fetched from the DB.
+        // The `_pricing` parameter from the service layer is NEVER used.
+        const itemsPrice = verifiedItems.reduce(
+          (sum, i) => sum + i.priceSnapshot * i.quantity,
+          0,
+        );
+        const shippingPrice = itemsPrice > 500 ? 0 : 50;
+        const taxPrice = 0;
+        const totalPrice = itemsPrice + shippingPrice + taxPrice;
 
-        verifiedItems.push({
-          productId:           product.id,    // Prisma native id — no conversion
-          productNameSnapshot: product.title, // from DB, not from item.name
-          imageSnapshot:       item.image ?? null,
-          quantity:            item.quantity,
-          priceSnapshot:       actualPrice,   // DB-authoritative, immutable snapshot
-        });
-      }
-
-      // ── Rule 6: Empty Order Guard ──────────────────────────────────────────
-      // If every item failed (all were inactive/OOS), verifiedItems is empty.
-      // We must NOT create an order with zero items.
-      if (verifiedItems.length === 0) {
-        throw new Error("No valid items remain after stock validation. Order cannot be created.");
-      }
-
-      // ── Step 2: Compute totals from DB-verified prices ONLY ───────────────
-      //
-      // Rule 1 (strict): itemsPrice and totalPrice are derived SOLELY from
-      // the priceSnapshot values we just fetched from the DB.
-      // The `_pricing` parameter from the service layer is NEVER used.
-      const itemsPrice   = verifiedItems.reduce((sum, i) => sum + i.priceSnapshot * i.quantity, 0);
-      const shippingPrice = itemsPrice > 500 ? 0 : 50;
-      const taxPrice      = 0;
-      const totalPrice    = itemsPrice + shippingPrice + taxPrice;
-
-      // ── Step 3: Create address snapshot ────────────────────────────────────
-      const address = await tx.address.create({
-        data: {
-          userId,
-          fullName:     shippingAddress.fullName     ?? null,
-          phone:        shippingAddress.phone        ?? null,
-          country:      shippingAddress.country      ?? "India",
-          state:        shippingAddress.state        ?? null,
-          city:         shippingAddress.city         ?? null,
-          pincode:      shippingAddress.postalCode   ?? shippingAddress.pincode ?? null,
-          addressLine1: shippingAddress.addressLine1 ?? null,
-          addressLine2: shippingAddress.addressLine2 ?? null,
-        },
-      });
-
-      // ── Step 4: Create order + order items ─────────────────────────────────
-      // Order number uniqueness retry: on a P2002 unique constraint violation,
-      // regenerate once and retry. Two retries is more than sufficient given
-      // the 1-in-1,000,000 collision probability of generateOrderNumber().
-      let created;
-      try {
-        created = await tx.order.create({
+        // ── Step 3: Create address snapshot ────────────────────────────────────
+        const address = await tx.address.create({
           data: {
             userId,
-            addressId:     address.id,
-            orderNumber,
-            paymentMethod: validPaymentMethod,
-            itemsPrice,
-            shippingPrice,
-            taxPrice,
-            totalPrice,
-            paymentStatus: "PENDING",
-            orderStatus:   "PENDING",
-            orderItems:    { create: verifiedItems },
+            fullName: shippingAddress.fullName ?? null,
+            phone: shippingAddress.phone ?? null,
+            country: shippingAddress.country ?? "India",
+            state: shippingAddress.state ?? null,
+            city: shippingAddress.city ?? null,
+            pincode:
+              shippingAddress.postalCode ?? shippingAddress.pincode ?? null,
+            addressLine1: shippingAddress.addressLine1 ?? null,
+            addressLine2: shippingAddress.addressLine2 ?? null,
           },
-          include: this.#include,
         });
-      } catch (err) {
-        if (err.code === "P2002" && err.meta?.target?.includes("orderNumber")) {
-          orderNumber = generateOrderNumber();
+
+        // ── Step 4: Create order + order items ─────────────────────────────────
+        // Order number uniqueness retry: on a P2002 unique constraint violation,
+        // regenerate once and retry. Two retries is more than sufficient given
+        // the 1-in-1,000,000 collision probability of generateOrderNumber().
+        let created;
+        try {
           created = await tx.order.create({
             data: {
               userId,
-              addressId:     address.id,
+              addressId: address.id,
               orderNumber,
               paymentMethod: validPaymentMethod,
               itemsPrice,
@@ -379,27 +384,51 @@ class OrderRepository {
               taxPrice,
               totalPrice,
               paymentStatus: "PENDING",
-              orderStatus:   "PENDING",
-              orderItems:    { create: verifiedItems },
+              orderStatus: "PENDING",
+              orderItems: { create: verifiedItems },
             },
             include: this.#include,
           });
-        } else {
-          throw err;
+        } catch (err) {
+          if (
+            err.code === "P2002" &&
+            err.meta?.target?.includes("orderNumber")
+          ) {
+            orderNumber = generateOrderNumber();
+            created = await tx.order.create({
+              data: {
+                userId,
+                addressId: address.id,
+                orderNumber,
+                paymentMethod: validPaymentMethod,
+                itemsPrice,
+                shippingPrice,
+                taxPrice,
+                totalPrice,
+                paymentStatus: "PENDING",
+                orderStatus: "PENDING",
+                orderItems: { create: verifiedItems },
+              },
+              include: this.#include,
+            });
+          } else {
+            throw err;
+          }
         }
-      }
 
-      // ── Step 5: Clear cart ──────────────────────────────────────────────────
-      await tx.cartItem.deleteMany({ where: { cartId } });
-      await tx.cart.update({
-        where: { id: cartId },
-        data:  { totalItems: 0, totalAmount: 0 },
-      });
+        // ── Step 5: Clear cart ──────────────────────────────────────────────────
+        await tx.cartItem.deleteMany({ where: { cartId } });
+        await tx.cart.update({
+          where: { id: cartId },
+          data: { totalItems: 0, totalAmount: 0 },
+        });
 
-      return created;
-    }, {
-      timeout: 15_000,   // allow concurrent checkouts enough time
-    });
+        return created;
+      },
+      {
+        timeout: 15_000, // allow concurrent checkouts enough time
+      },
+    );
 
     return this.#normalise(order);
   }
@@ -408,7 +437,7 @@ class OrderRepository {
 
   async findById(id) {
     const order = await prisma.order.findUnique({
-      where:   { id },
+      where: { id },
       include: this.#include,
     });
     return this.#normalise(order);
@@ -417,7 +446,7 @@ class OrderRepository {
   async findByUserId(userId, { skip = 0, limit = 10 } = {}) {
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
-        where:   { userId },
+        where: { userId },
         include: this.#include,
         orderBy: { createdAt: "desc" },
         skip,
@@ -430,8 +459,10 @@ class OrderRepository {
 
   async findAll({ skip = 0, limit = 10, userId, orderStatus } = {}) {
     const where = {};
-    if (userId)      where.userId      = userId;
-    if (orderStatus) where.orderStatus = ORDER_STATUS_MAP[orderStatus] ?? orderStatus.toUpperCase();
+    if (userId) where.userId = userId;
+    if (orderStatus)
+      where.orderStatus =
+        ORDER_STATUS_MAP[orderStatus] ?? orderStatus.toUpperCase();
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
@@ -448,18 +479,23 @@ class OrderRepository {
 
   // ─── Status updates ────────────────────────────────────────────────────────
 
-  async updateStatus(id, { orderStatus, paymentStatus, deliveredAt, paidAt } = {}) {
+  async updateStatus(
+    id,
+    { orderStatus, paymentStatus, deliveredAt, paidAt } = {},
+  ) {
     const data = {};
 
-    if (orderStatus  !== undefined)
-      data.orderStatus   = ORDER_STATUS_MAP[orderStatus]    ?? orderStatus.toUpperCase();
+    if (orderStatus !== undefined)
+      data.orderStatus =
+        ORDER_STATUS_MAP[orderStatus] ?? orderStatus.toUpperCase();
     if (paymentStatus !== undefined)
-      data.paymentStatus = PAYMENT_STATUS_MAP[paymentStatus] ?? paymentStatus.toUpperCase();
+      data.paymentStatus =
+        PAYMENT_STATUS_MAP[paymentStatus] ?? paymentStatus.toUpperCase();
     if (deliveredAt !== undefined) data.deliveredAt = deliveredAt;
-    if (paidAt      !== undefined) data.paidAt      = paidAt;
+    if (paidAt !== undefined) data.paidAt = paidAt;
 
     const order = await prisma.order.update({
-      where:   { id },
+      where: { id },
       data,
       include: this.#include,
     });
@@ -474,14 +510,28 @@ class OrderRepository {
    * Enforces DB-Level Idempotency because Payment.orderId is UNIQUE.
    */
   async updatePaymentAtomic(orderId, paymentData) {
-    const { paymentMethod, paymentGatewayId, transactionId, gatewayEventId, amount, paymentStatus, orderStatus, paidAt } = paymentData;
+    const {
+      paymentMethod,
+      paymentGatewayId,
+      transactionId,
+      gatewayEventId,
+      amount,
+      paymentStatus,
+      orderStatus,
+      paidAt,
+    } = paymentData;
 
     const orderUpdateData = {};
-    if (paymentStatus) orderUpdateData.paymentStatus = PAYMENT_STATUS_MAP[paymentStatus] ?? paymentStatus.toUpperCase();
-    if (orderStatus) orderUpdateData.orderStatus = ORDER_STATUS_MAP[orderStatus] ?? orderStatus.toUpperCase();
+    if (paymentStatus)
+      orderUpdateData.paymentStatus =
+        PAYMENT_STATUS_MAP[paymentStatus] ?? paymentStatus.toUpperCase();
+    if (orderStatus)
+      orderUpdateData.orderStatus =
+        ORDER_STATUS_MAP[orderStatus] ?? orderStatus.toUpperCase();
     if (paidAt !== undefined) orderUpdateData.paidAt = paidAt;
 
-    const dbPaymentStatus = PAYMENT_STATUS_MAP[paymentStatus] ?? paymentStatus.toUpperCase();
+    const dbPaymentStatus =
+      PAYMENT_STATUS_MAP[paymentStatus] ?? paymentStatus.toUpperCase();
     const dbPaymentMethod = (paymentMethod || "COD").toUpperCase();
 
     const order = await prisma.$transaction(async (tx) => {
@@ -504,7 +554,7 @@ class OrderRepository {
           paymentGatewayId: paymentGatewayId || null,
           gatewayEventId: gatewayEventId || null,
           paidAt: paidAt || null,
-        }
+        },
       });
 
       // 2. Atomic order update
@@ -537,26 +587,29 @@ class OrderRepository {
    * @returns {object}       normalised order in CANCELLED state
    */
   async cancelOrder(orderId, items) {
-    const cancelledOrder = await prisma.$transaction(async (tx) => {
-      // 1. Update order status to CANCELLED
-      const order = await tx.order.update({
-        where:   { id: orderId },
-        data:    { orderStatus: "CANCELLED" },
-        include: this.#include,
-      });
-
-      // 2. Restore stock for every item in the same transaction
-      for (const item of items) {
-        await tx.product.updateMany({
-          where: { id: item.product },          // Prisma native id — no conversion
-          data:  { stock: { increment: item.quantity } },
+    const cancelledOrder = await prisma.$transaction(
+      async (tx) => {
+        // 1. Update order status to CANCELLED
+        const order = await tx.order.update({
+          where: { id: orderId },
+          data: { orderStatus: "CANCELLED" },
+          include: this.#include,
         });
-      }
 
-      return order;
-    }, {
-      timeout: 10_000,
-    });
+        // 2. Restore stock for every item in the same transaction
+        for (const item of items) {
+          await tx.product.updateMany({
+            where: { id: item.product }, // Prisma native id — no conversion
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+
+        return order;
+      },
+      {
+        timeout: 10_000,
+      },
+    );
 
     return this.#normalise(cancelledOrder);
   }
@@ -576,7 +629,7 @@ class OrderRepository {
       items.map((item) =>
         prisma.product.updateMany({
           where: { id: item.product },
-          data:  { stock: { increment: item.quantity } },
+          data: { stock: { increment: item.quantity } },
         }),
       ),
     );
@@ -586,10 +639,10 @@ class OrderRepository {
     const item = await prisma.orderItem.findFirst({
       where: {
         productId,
-        order: { 
-          userId, 
+        order: {
+          userId,
           orderStatus: "DELIVERED",
-          paymentStatus: "PAID"
+          paymentStatus: "PAID",
         },
       },
       select: { id: true },

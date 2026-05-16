@@ -13,7 +13,10 @@ class CartService {
   #validateQuantity(quantity) {
     const q = Number(quantity);
     if (!Number.isInteger(q) || q <= 0) {
-      throw new AppError("Quantity must be a positive integer greater than 0", HTTP_STATUS.BAD_REQUEST);
+      throw new AppError(
+        "Quantity must be a positive integer greater than 0",
+        HTTP_STATUS.BAD_REQUEST,
+      );
     }
     return q;
   }
@@ -70,7 +73,8 @@ class CartService {
     // Check if adding this quantity would exceed stock
     // Use product.id (Prisma normalised shape exposes both id and _id)
     const existingItem = cart.items.find(
-      (i) => (i.product?.id ?? i.product?._id)?.toString() === productId.toString()
+      (i) =>
+        (i.product?.id ?? i.product?.id)?.toString() === productId.toString(),
     );
     const totalQuantity = existingItem
       ? existingItem.quantity + validQuantity
@@ -127,7 +131,12 @@ class CartService {
 
     // Update quantity and price snapshot
     const price = product.discountPrice || product.price;
-    await cartRepository.setItemQuantity(cart.id, productId, validQuantity, price);
+    await cartRepository.setItemQuantity(
+      cart.id,
+      productId,
+      validQuantity,
+      price,
+    );
 
     return cartRepository.reload(cart.id);
   }
@@ -184,20 +193,21 @@ class CartService {
 
       if (!p || !p.isActive) {
         validationErrors.push({
-          productId: p?._id || "unknown",
+          productId: p?.id || "unknown",
           message: "Product is no longer available",
         });
         continue;
       }
 
-      // We don't have .status property natively on the returned item.product 
+      // We don't have .status property natively on the returned item.product
       // but it might be mapped, or we can just look at stock/isActive.
       // DTO product doesn't necessarily have status unless we derive it.
-      const status = p.stock > 0 ? PRODUCT_STATUS.ACTIVE : PRODUCT_STATUS.OUT_OF_STOCK;
+      const status =
+        p.stock > 0 ? PRODUCT_STATUS.ACTIVE : PRODUCT_STATUS.OUT_OF_STOCK;
 
       if (status !== PRODUCT_STATUS.ACTIVE) {
         validationErrors.push({
-          productId: p._id,
+          productId: p.id,
           productName: p.name,
           message: "Product is not available for purchase",
         });
@@ -205,7 +215,7 @@ class CartService {
 
       if (item.quantity > p.stock) {
         validationErrors.push({
-          productId: p._id,
+          productId: p.id,
           productName: p.name,
           message: `Insufficient stock. Only ${p.stock} items available`,
           requestedQuantity: item.quantity,

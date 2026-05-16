@@ -27,10 +27,10 @@ class CartRepository {
     const items = (cart.items ?? []).map((item) => {
       const p = item.product;
       return {
-        _id: item.id,
+        id: item.id,
         product: p
           ? {
-              _id: p.id,
+              id: p.id,
               id: p.id,
               name: p.title,
               slug: p.slug,
@@ -50,7 +50,7 @@ class CartRepository {
     });
 
     return {
-      _id: cart.id,
+      id: cart.id,
       id: cart.id,
       user: cart.userId,
       items,
@@ -65,7 +65,10 @@ class CartRepository {
   async #recalculate(cartId, tx = prisma) {
     const items = await tx.cartItem.findMany({ where: { cartId } });
     const totalItems = items.reduce((s, i) => s + i.quantity, 0);
-    const totalAmount = items.reduce((s, i) => s + i.priceSnapshot * i.quantity, 0);
+    const totalAmount = items.reduce(
+      (s, i) => s + i.priceSnapshot * i.quantity,
+      0,
+    );
     await tx.cart.update({
       where: { id: cartId },
       data: { totalItems, totalAmount },
@@ -93,7 +96,9 @@ class CartRepository {
   async create(userId) {
     const cart = await prisma.cart.create({
       data: { userId, totalItems: 0, totalAmount: 0 },
-      include: { items: { include: { product: { select: this.#productSelect } } } },
+      include: {
+        items: { include: { product: { select: this.#productSelect } } },
+      },
     });
     return this.#normalise(cart);
   }

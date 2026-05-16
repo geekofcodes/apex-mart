@@ -9,7 +9,7 @@ class UserDTO {
    */
   static userResponse(user) {
     return {
-      _id: user._id,
+      id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -27,7 +27,7 @@ class UserDTO {
    */
   static detailedUserResponse(user) {
     return {
-      _id: user._id,
+      id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -52,7 +52,7 @@ class UserDTO {
    */
   static userListResponse(users) {
     return users.map((user) => ({
-      _id: user._id,
+      id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -68,7 +68,7 @@ class UserDTO {
    */
   static minimalUserResponse(user) {
     return {
-      _id: user._id,
+      id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,

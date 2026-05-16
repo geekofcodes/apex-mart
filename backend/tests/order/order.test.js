@@ -35,14 +35,14 @@ describe("Order API", () => {
       name: "Test Product",
       description: "Test product description",
       price: 100,
-      category: category._id,
+      category: category.id,
       stock: 50,
-      seller: seller._id,
+      seller: seller.id,
     });
 
     customerToken = customer.generateAccessToken();
-    customerId = customer._id;
-    productId = product._id;
+    customerId = customer.id;
+    productId = product.id;
   });
 
   describe("POST /api/v1/orders", () => {
@@ -197,7 +197,7 @@ describe("Order API", () => {
         subtotal: 200,
         totalAmount: 200,
       });
-      orderId = order._id.toString();
+      orderId = order.id.toString();
     });
 
     it("should get order by id", async () => {

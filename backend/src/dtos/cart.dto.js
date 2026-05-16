@@ -11,7 +11,7 @@ class CartDTO {
     if (!cart) return null;
 
     return {
-      id: cart._id,
+      id: cart.id,
       items: cart.items.map((item) => ({
         product:
           typeof item.product === "object"

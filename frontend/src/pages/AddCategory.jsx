@@ -139,7 +139,7 @@ const AddCategory = () => {
             >
               <option value="">None (Top Level)</option>
               {categories.map((cat) => (
-                <option key={cat._id || cat.id} value={cat._id || cat.id}>
+                <option key={cat.id} value={cat.id}>
                   {cat.name}
                 </option>
               ))}

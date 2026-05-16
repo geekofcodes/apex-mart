@@ -27,7 +27,10 @@ class ProductService {
    */
   #statusToIsActive(status) {
     if (status === PRODUCT_STATUS.DISCONTINUED) return false;
-    if (status === PRODUCT_STATUS.ACTIVE || status === PRODUCT_STATUS.OUT_OF_STOCK) {
+    if (
+      status === PRODUCT_STATUS.ACTIVE ||
+      status === PRODUCT_STATUS.OUT_OF_STOCK
+    ) {
       return true;
     }
     return undefined; // no filter
@@ -47,7 +50,7 @@ class ProductService {
 
   /**
    * Ownership check — throws 403 if a non-admin tries to touch another
-   * seller's product. Uses seller.id (Prisma) not seller._id (Mongo).
+   * seller's product. Uses seller.id (Prisma) not seller.id (Mongo).
    */
   #assertOwnership(product, userId, userRole) {
     if (userRole === "ADMIN") return; // admins bypass check
@@ -67,21 +70,29 @@ class ProductService {
   async #validateProductData(data, opts = { requireAll: false }) {
     const errors = [];
 
-    if (opts.requireAll || data.name !== undefined || data.title !== undefined) {
+    if (
+      opts.requireAll ||
+      data.name !== undefined ||
+      data.title !== undefined
+    ) {
       const name = data.name || data.title;
-      if (!name || !name.toString().trim()) errors.push("Product name/title is required");
+      if (!name || !name.toString().trim())
+        errors.push("Product name/title is required");
     }
 
     if (opts.requireAll || data.price !== undefined) {
       const price = Number(data.price);
-      if (isNaN(price) || price <= 0) errors.push("Price must be a positive number");
+      if (isNaN(price) || price <= 0)
+        errors.push("Price must be a positive number");
     }
 
     if (data.discountPrice !== undefined && data.discountPrice !== null) {
       const dp = Number(data.discountPrice);
       const p = Number(data.price ?? 0);
-      if (isNaN(dp) || dp < 0) errors.push("Discount price must be non-negative");
-      if (p > 0 && dp >= p) errors.push("Discount price must be less than price");
+      if (isNaN(dp) || dp < 0)
+        errors.push("Discount price must be non-negative");
+      if (p > 0 && dp >= p)
+        errors.push("Discount price must be less than price");
     }
 
     if (opts.requireAll || data.stock !== undefined) {
@@ -179,7 +190,8 @@ class ProductService {
    */
   async getProductById(productId) {
     const product = await productRepository.findById(productId);
-    if (!product) throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
+    if (!product)
+      throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
     return product;
   }
 
@@ -189,7 +201,8 @@ class ProductService {
    */
   async updateProduct(productId, updateData, userId, userRole) {
     const product = await productRepository.findById(productId);
-    if (!product) throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
+    if (!product)
+      throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
 
     // Security: ownership check using seller.id (Prisma), not _id (Mongo)
     this.#assertOwnership(product, userId, userRole);
@@ -211,7 +224,8 @@ class ProductService {
    */
   async deleteProduct(productId, userId, userRole) {
     const product = await productRepository.findById(productId);
-    if (!product) throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
+    if (!product)
+      throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
 
     // Security: ownership check using seller.id (Prisma)
     this.#assertOwnership(product, userId, userRole);
@@ -261,12 +275,16 @@ class ProductService {
   async updateStock(productId, quantity) {
     // 1. Verify product exists
     const product = await productRepository.findById(productId, false);
-    if (!product) throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
+    if (!product)
+      throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
 
     // 2. Parse and validate
     const newStock = parseInt(quantity, 10);
     if (isNaN(newStock) || !Number.isInteger(newStock)) {
-      throw new AppError("Stock quantity must be an integer", HTTP_STATUS.BAD_REQUEST);
+      throw new AppError(
+        "Stock quantity must be an integer",
+        HTTP_STATUS.BAD_REQUEST,
+      );
     }
 
     // 3. Prevent negative values
@@ -275,7 +293,9 @@ class ProductService {
     }
 
     // 4. Apply update
-    const updated = await productRepository.update(productId, { stock: newStock });
+    const updated = await productRepository.update(productId, {
+      stock: newStock,
+    });
     return updated;
   }
 

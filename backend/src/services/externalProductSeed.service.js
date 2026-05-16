@@ -43,7 +43,9 @@ class ExternalProductSeedService {
   async fetchExternalCategories() {
     try {
       logger.info("Fetching categories from DummyJSON");
-      const response = await axios.get(`${DUMMYJSON_BASE_URL}/products/categories`);
+      const response = await axios.get(
+        `${DUMMYJSON_BASE_URL}/products/categories`,
+      );
       return response.data;
     } catch (error) {
       logger.error("Error fetching categories from DummyJSON", error);
@@ -125,7 +127,7 @@ class ExternalProductSeedService {
       const category = await categoryRepository.findBySlug(slug);
 
       if (category) {
-        mapping[categoryName] = category._id;
+        mapping[categoryName] = category.id;
       }
     }
 
@@ -192,7 +194,10 @@ class ExternalProductSeedService {
       let hasMore = true;
 
       while (hasMore) {
-        const { products, total } = await this.fetchExternalProducts(skip, limit);
+        const { products, total } = await this.fetchExternalProducts(
+          skip,
+          limit,
+        );
 
         if (!products || products.length === 0) {
           hasMore = false;
@@ -232,11 +237,14 @@ class ExternalProductSeedService {
           const normalizedProduct = this.normalizeProduct(
             externalProduct,
             categoryId,
-            systemUser._id,
+            systemUser.id,
           );
 
           // Validate before insertion
-          if (!normalizedProduct.images || normalizedProduct.images.length === 0) {
+          if (
+            !normalizedProduct.images ||
+            normalizedProduct.images.length === 0
+          ) {
             logger.warn(
               `Skipping product: ${externalProduct.title} - no valid images`,
             );

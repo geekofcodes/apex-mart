@@ -9,7 +9,7 @@ class CategoryDTO {
     if (!category) return null;
 
     return {
-      id: category._id,
+      id: category.id,
       name: category.name,
       slug: category.slug,
       description: category.description,
@@ -34,7 +34,7 @@ class CategoryDTO {
     if (!node) return null;
 
     return {
-      id: node._id,
+      id: node.id,
       name: node.name,
       slug: node.slug,
       children: node.children

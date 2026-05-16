@@ -10,7 +10,7 @@ import Pagination from "../utils/pagination.js";
  *
  * Responsibilities:
  *  - Input validation (rating range, review existence)
- *  - Ownership enforcement using user.id (Prisma) not user._id (Mongo)
+ *  - Ownership enforcement using user.id (Prisma) not user.id (Mongo)
  *  - Verified-purchase gate
  *  - Product rating cache sync after every mutation
  */
@@ -23,7 +23,10 @@ class ReviewService {
   #validateRating(rating) {
     const r = Number(rating);
     if (!Number.isInteger(r) || r < 1 || r > 5) {
-      throw new AppError("Rating must be an integer between 1 and 5", HTTP_STATUS.BAD_REQUEST);
+      throw new AppError(
+        "Rating must be an integer between 1 and 5",
+        HTTP_STATUS.BAD_REQUEST,
+      );
     }
   }
 
@@ -33,7 +36,7 @@ class ReviewService {
    */
   #assertOwnership(review, userId, userRole = "CUSTOMER") {
     if (userRole === "ADMIN") return;
-    const ownerId = review.user?.id ?? null;   // normalised shape exposes .id
+    const ownerId = review.user?.id ?? null; // normalised shape exposes .id
     if (!ownerId || ownerId !== userId.toString()) {
       throw new AppError(
         "You do not have permission to modify this review",
@@ -87,7 +90,10 @@ class ReviewService {
     }
 
     // One review per user per product
-    const existingReview = await reviewRepository.findByUserAndProduct(userId, productId);
+    const existingReview = await reviewRepository.findByUserAndProduct(
+      userId,
+      productId,
+    );
     if (existingReview) {
       throw new AppError(
         "You have already reviewed this product. Update your existing review instead.",
@@ -100,7 +106,7 @@ class ReviewService {
     if (!hasPurchased) {
       throw new AppError(
         "You can only review products you have purchased and not refunded",
-        HTTP_STATUS.FORBIDDEN
+        HTTP_STATUS.FORBIDDEN,
       );
     }
 
@@ -109,7 +115,7 @@ class ReviewService {
       productId,
       userId,
       rating: Number(rating),
-      title:  title?.trim()   ?? null,
+      title: title?.trim() ?? null,
       comment: comment?.trim() ?? null,
       isVerifiedPurchase: true, // We now enforce this
     });
@@ -132,20 +138,20 @@ class ReviewService {
       limit = 10,
       rating,
       verifiedOnly,
-      sortBy   = "createdAt",
+      sortBy = "createdAt",
       sortOrder = "desc",
     } = queryParams;
 
     const {
       skip,
       limit: validLimit,
-      page:  validPage,
+      page: validPage,
     } = Pagination.getPaginationParams(page, limit);
 
     const { reviews, total } = await reviewRepository.findByProduct(productId, {
       skip,
-      limit:       validLimit,
-      rating:      rating ? parseInt(rating, 10) : undefined,
+      limit: validLimit,
+      rating: rating ? parseInt(rating, 10) : undefined,
       verifiedOnly: verifiedOnly === "true" || verifiedOnly === true,
       sortBy,
       sortOrder,
@@ -166,7 +172,7 @@ class ReviewService {
     const {
       skip,
       limit: validLimit,
-      page:  validPage,
+      page: validPage,
     } = Pagination.getPaginationParams(page, limit);
 
     const { reviews, total } = await reviewRepository.findByUser(userId, {
@@ -205,8 +211,9 @@ class ReviewService {
     }
 
     const updatedReview = await reviewRepository.update(reviewId, {
-      rating:  updateData.rating  !== undefined ? Number(updateData.rating) : undefined,
-      title:   updateData.title?.trim()   ?? undefined,
+      rating:
+        updateData.rating !== undefined ? Number(updateData.rating) : undefined,
+      title: updateData.title?.trim() ?? undefined,
       comment: updateData.comment?.trim() ?? undefined,
     });
 
@@ -230,7 +237,7 @@ class ReviewService {
     this.#assertOwnership(review, userId, userRole);
 
     const productId = this.#getProductId(review);
-    const deleted   = await reviewRepository.softDelete(reviewId);
+    const deleted = await reviewRepository.softDelete(reviewId);
 
     // Sync cache
     await this.#syncProductRating(productId);
@@ -242,7 +249,8 @@ class ReviewService {
 
   async getProductRatingStats(productId) {
     const product = await productRepository.findById(productId, false);
-    if (!product) throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
+    if (!product)
+      throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
 
     const [distribution, stats] = await Promise.all([
       reviewRepository.getRatingDistribution(productId),
@@ -250,8 +258,8 @@ class ReviewService {
     ]);
 
     return {
-      averageRating:      stats.averageRating,
-      totalReviews:       stats.totalReviews,
+      averageRating: stats.averageRating,
+      totalReviews: stats.totalReviews,
       ratingDistribution: distribution,
     };
   }
