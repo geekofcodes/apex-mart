@@ -1,4 +1,5 @@
-import { Prisma } from "@prisma/client";
+import pkg from "@prisma/client";
+const { Prisma } = pkg;
 import logger from "../utils/logger.js";
 import ApiResponse from "../utils/apiResponse.js";
 import { HTTP_STATUS, ERROR_MESSAGES } from "../utils/constants.js";
