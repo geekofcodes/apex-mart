@@ -22,7 +22,7 @@ export const register = asyncHandler(async (req, res) => {
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 
@@ -50,7 +50,7 @@ export const login = asyncHandler(async (req, res) => {
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 
@@ -84,7 +84,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const logout = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user.id;
   await authService.logout(userId);
 
   res.clearCookie("refreshToken");

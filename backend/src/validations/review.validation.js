@@ -5,10 +5,9 @@ import Joi from "joi";
  */
 export const createReviewSchema = Joi.object({
   product: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
+    .min(1)
     .required()
     .messages({
-      "string.pattern.base": "Invalid product ID format",
       "any.required": "Product ID is required",
     }),
   rating: Joi.number().min(1).max(5).required().messages({
@@ -45,10 +44,10 @@ export const getReviewsQuerySchema = Joi.object({
  */
 export const productIdParamSchema = Joi.object({
   productId: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
+    .min(1)
     .required()
     .messages({
-      "string.pattern.base": "Invalid product ID format",
+      "any.required": "Product ID is required",
     }),
 });
 
@@ -57,9 +56,9 @@ export const productIdParamSchema = Joi.object({
  */
 export const objectIdSchema = Joi.object({
   id: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
+    .min(1)
     .required()
     .messages({
-      "string.pattern.base": "Invalid ID format",
+      "any.required": "ID is required",
     }),
 });

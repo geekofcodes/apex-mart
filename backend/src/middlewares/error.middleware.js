@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import logger from "../utils/logger.js";
 import ApiResponse from "../utils/apiResponse.js";
 import { HTTP_STATUS, ERROR_MESSAGES } from "../utils/constants.js";
@@ -30,36 +31,63 @@ const errorHandler = (err, req, res, next) => {
     method: req.method,
   });
 
-  // Mongoose bad ObjectId
-  if (err.name === "CastError") {
-    const message = "Resource not found";
-    error = new AppError(message, HTTP_STATUS.NOT_FOUND);
+  // --- Prisma Errors ---
+
+  // Known request errors (e.g., constraint violations, not found)
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    switch (err.code) {
+      case "P2002": {
+        // Unique constraint violation
+        const field = err.meta?.target?.[0] || "field";
+        error = new AppError(`${field} already exists`, HTTP_STATUS.CONFLICT);
+        break;
+      }
+      case "P2025":
+        // Record not found (e.g., update/delete on missing record)
+        error = new AppError("Resource not found", HTTP_STATUS.NOT_FOUND);
+        break;
+      case "P2003":
+        // Foreign key constraint failed
+        error = new AppError(
+          "Related resource not found",
+          HTTP_STATUS.BAD_REQUEST,
+        );
+        break;
+      case "P2023":
+        // Inconsistent column data (e.g., bad ID format)
+        error = new AppError("Resource not found", HTTP_STATUS.NOT_FOUND);
+        break;
+      default:
+        error = new AppError(
+          "Database error",
+          HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        );
+    }
   }
 
-  // Mongoose duplicate key
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
-    const message = `${field} already exists`;
-    error = new AppError(message, HTTP_STATUS.CONFLICT);
+  // Validation errors (bad query shape / missing required fields)
+  if (err instanceof Prisma.PrismaClientValidationError) {
+    error = new AppError(
+      "Invalid data provided",
+      HTTP_STATUS.UNPROCESSABLE_ENTITY,
+    );
   }
 
-  // Mongoose validation error
-  if (err.name === "ValidationError") {
-    const message = Object.values(err.errors)
-      .map((val) => val.message)
-      .join(", ");
-    error = new AppError(message, HTTP_STATUS.UNPROCESSABLE_ENTITY);
+  // Initialization errors (misconfigured client)
+  if (err instanceof Prisma.PrismaClientInitializationError) {
+    error = new AppError(
+      "Database connection failed",
+      HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    );
   }
 
-  // JWT errors
+  // --- JWT errors ---
   if (err.name === "JsonWebTokenError") {
-    const message = "Invalid token";
-    error = new AppError(message, HTTP_STATUS.UNAUTHORIZED);
+    error = new AppError("Invalid token", HTTP_STATUS.UNAUTHORIZED);
   }
 
   if (err.name === "TokenExpiredError") {
-    const message = "Token expired";
-    error = new AppError(message, HTTP_STATUS.UNAUTHORIZED);
+    error = new AppError("Token expired", HTTP_STATUS.UNAUTHORIZED);
   }
 
   // Send error response

@@ -1,5 +1,4 @@
-import Category from "../models/category.model.js";
-import Product from "../models/product.model.js";
+import categoryRepository from "../repositories/category.repository.js";
 import { AppError } from "../middlewares/error.middleware.js";
 import { HTTP_STATUS } from "../utils/constants.js";
 
@@ -12,9 +11,7 @@ class CategoryService {
    */
   async createCategory(categoryData) {
     // Check if slug already exists
-    const existingCategory = await Category.findOne({
-      slug: categoryData.slug,
-    });
+    const existingCategory = await categoryRepository.findBySlug(categoryData.slug);
     if (existingCategory) {
       throw new AppError(
         "Category with this slug already exists",
@@ -24,19 +21,13 @@ class CategoryService {
 
     // If parent category is specified, verify it exists
     if (categoryData.parentCategory) {
-      const parentExists = await Category.findById(categoryData.parentCategory);
+      const parentExists = await categoryRepository.findById(categoryData.parentCategory);
       if (!parentExists) {
         throw new AppError("Parent category not found", HTTP_STATUS.NOT_FOUND);
       }
     }
 
-    const category = await Category.create(categoryData);
-
-    // Populate parent if exists
-    if (category.parentCategory) {
-      await category.populate("parentCategory", "name slug level");
-    }
-
+    const category = await categoryRepository.create(categoryData);
     return category;
   }
 
@@ -46,20 +37,11 @@ class CategoryService {
   async getAllCategories(queryParams = {}) {
     const { parentCategory, level } = queryParams;
 
-    const filter = { isActive: true };
-
-    if (parentCategory !== undefined) {
-      filter.parentCategory = parentCategory === "null" ? null : parentCategory;
-    }
-
-    if (level !== undefined) {
-      filter.level = parseInt(level, 10);
-    }
-
-    const categories = await Category.find(filter)
-      .populate("parentCategory", "name slug")
-      .sort({ displayOrder: 1, name: 1 })
-      .lean();
+    const categories = await categoryRepository.findMany({
+      parentId: parentCategory,
+      level,
+      isActive: true,
+    });
 
     return categories;
   }
@@ -68,17 +50,14 @@ class CategoryService {
    * Get category tree (hierarchical structure)
    */
   async getCategoryTree() {
-    const tree = await Category.getCategoryTree();
-    return tree;
+    return categoryRepository.getTree();
   }
 
   /**
    * Get category by ID
    */
   async getCategoryById(categoryId) {
-    const category = await Category.findById(categoryId)
-      .populate("parentCategory", "name slug level")
-      .lean();
+    const category = await categoryRepository.findById(categoryId);
 
     if (!category) {
       throw new AppError("Category not found", HTTP_STATUS.NOT_FOUND);
@@ -91,9 +70,7 @@ class CategoryService {
    * Get category by slug
    */
   async getCategoryBySlug(slug) {
-    const category = await Category.findOne({ slug })
-      .populate("parentCategory", "name slug level")
-      .lean();
+    const category = await categoryRepository.findBySlug(slug);
 
     if (!category) {
       throw new AppError("Category not found", HTTP_STATUS.NOT_FOUND);
@@ -106,7 +83,7 @@ class CategoryService {
    * Update category
    */
   async updateCategory(categoryId, updateData) {
-    const category = await Category.findById(categoryId);
+    const category = await categoryRepository.findById(categoryId);
 
     if (!category) {
       throw new AppError("Category not found", HTTP_STATUS.NOT_FOUND);
@@ -114,9 +91,7 @@ class CategoryService {
 
     // If slug is being updated, check for duplicates
     if (updateData.slug && updateData.slug !== category.slug) {
-      const existingCategory = await Category.findOne({
-        slug: updateData.slug,
-      });
+      const existingCategory = await categoryRepository.findBySlug(updateData.slug);
       if (existingCategory) {
         throw new AppError(
           "Category with this slug already exists",
@@ -128,7 +103,7 @@ class CategoryService {
     // If parent is being updated, verify it exists and prevent circular references
     if (updateData.parentCategory !== undefined) {
       if (updateData.parentCategory) {
-        const parentExists = await Category.findById(updateData.parentCategory);
+        const parentExists = await categoryRepository.findById(updateData.parentCategory);
         if (!parentExists) {
           throw new AppError(
             "Parent category not found",
@@ -137,14 +112,14 @@ class CategoryService {
         }
 
         // Check for circular reference
-        if (updateData.parentCategory.toString() === categoryId.toString()) {
+        if (updateData.parentCategory === categoryId) {
           throw new AppError(
             "A category cannot be its own parent",
             HTTP_STATUS.BAD_REQUEST,
           );
         }
 
-        const isDescendant = await Category.isDescendantOf(
+        const isDescendant = await categoryRepository.isDescendantOf(
           updateData.parentCategory,
           categoryId,
         );
@@ -158,29 +133,22 @@ class CategoryService {
     }
 
     // Update category
-    Object.assign(category, updateData);
-    await category.save();
-
-    // Populate and return
-    if (category.parentCategory) {
-      await category.populate("parentCategory", "name slug level");
-    }
-
-    return category;
+    const updated = await categoryRepository.update(categoryId, updateData);
+    return updated;
   }
 
   /**
    * Delete category (soft delete)
    */
   async deleteCategory(categoryId) {
-    const category = await Category.findById(categoryId);
+    const category = await categoryRepository.findById(categoryId);
 
     if (!category) {
       throw new AppError("Category not found", HTTP_STATUS.NOT_FOUND);
     }
 
     // Check if category has products
-    const productCount = await Product.countDocuments({ category: categoryId });
+    const productCount = await categoryRepository.countProducts(categoryId);
     if (productCount > 0) {
       throw new AppError(
         `Cannot delete category with ${productCount} associated products. Please reassign or delete products first.`,
@@ -189,9 +157,7 @@ class CategoryService {
     }
 
     // Check if category has subcategories
-    const subcategoryCount = await Category.countDocuments({
-      parentCategory: categoryId,
-    });
+    const subcategoryCount = await categoryRepository.countSubcategories(categoryId);
     if (subcategoryCount > 0) {
       throw new AppError(
         `Cannot delete category with ${subcategoryCount} subcategories. Please delete or reassign subcategories first.`,
@@ -200,28 +166,24 @@ class CategoryService {
     }
 
     // Soft delete
-    category.isActive = false;
-    await category.save();
-
-    return category;
+    const deleted = await categoryRepository.softDelete(categoryId);
+    return deleted;
   }
 
   /**
    * Get subcategories of a category
    */
   async getSubcategories(categoryId) {
-    const category = await Category.findById(categoryId);
+    const category = await categoryRepository.findById(categoryId);
 
     if (!category) {
       throw new AppError("Category not found", HTTP_STATUS.NOT_FOUND);
     }
 
-    const subcategories = await Category.find({
-      parentCategory: categoryId,
+    const subcategories = await categoryRepository.findMany({
+      parentId: categoryId,
       isActive: true,
-    })
-      .sort({ displayOrder: 1, name: 1 })
-      .lean();
+    });
 
     return subcategories;
   }
@@ -230,14 +192,7 @@ class CategoryService {
    * Update product count for a category
    */
   async updateProductCount(categoryId) {
-    const count = await Product.countDocuments({
-      category: categoryId,
-      isActive: true,
-    });
-
-    await Category.findByIdAndUpdate(categoryId, { productCount: count });
-
-    return count;
+    return categoryRepository.updateProductCount(categoryId);
   }
 }
 

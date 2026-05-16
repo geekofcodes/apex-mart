@@ -1,37 +1,139 @@
-import Product from "../models/product.model.js";
+import productRepository from "../repositories/product.repository.js";
+import categoryRepository from "../repositories/category.repository.js";
 import { AppError } from "../middlewares/error.middleware.js";
 import { HTTP_STATUS, PRODUCT_STATUS } from "../utils/constants.js";
 import Pagination from "../utils/pagination.js";
 
 /**
- * Product Service - Contains all product management business logic
+ * Product Service — production-hardened.
+ *
+ * Responsibilities:
+ *  - Input validation (price, stock, category existence)
+ *  - Ownership enforcement (seller vs admin)
+ *  - Status-aware filtering
+ *  - Safe stock mutation
+ *  - Delegated DB access to productRepository
  */
 class ProductService {
+  // ─── Internal helpers ────────────────────────────────────────────────────
+
   /**
-   * Create a new product
+   * Map a client-supplied `status` query param to the `isActive` boolean
+   * understood by the repository.
+   *  ACTIVE          → isActive: true   (stock filter applied in repo)
+   *  DISCONTINUED    → isActive: false
+   *  OUT_OF_STOCK    → isActive: true   (repo derives from stock === 0)
+   *  undefined/other → no restriction   (undefined = don't filter)
+   */
+  #statusToIsActive(status) {
+    if (status === PRODUCT_STATUS.DISCONTINUED) return false;
+    if (status === PRODUCT_STATUS.ACTIVE || status === PRODUCT_STATUS.OUT_OF_STOCK) {
+      return true;
+    }
+    return undefined; // no filter
+  }
+
+  /**
+   * Parse a boolean-like query string value.
+   * Accepts: true/false (boolean), "true"/"false" (string), "1"/"0" (string).
+   */
+  #parseBool(val) {
+    if (val === undefined || val === null) return undefined;
+    if (typeof val === "boolean") return val;
+    if (val === "true" || val === "1") return true;
+    if (val === "false" || val === "0") return false;
+    return undefined;
+  }
+
+  /**
+   * Ownership check — throws 403 if a non-admin tries to touch another
+   * seller's product. Uses seller.id (Prisma) not seller._id (Mongo).
+   */
+  #assertOwnership(product, userId, userRole) {
+    if (userRole === "ADMIN") return; // admins bypass check
+
+    const sellerId = product.seller?.id ?? null;
+    if (!sellerId || sellerId !== userId) {
+      throw new AppError(
+        "You do not have permission to modify this product",
+        HTTP_STATUS.FORBIDDEN,
+      );
+    }
+  }
+
+  /**
+   * Validate create / update payload fields that can be set by the caller.
+   */
+  async #validateProductData(data, opts = { requireAll: false }) {
+    const errors = [];
+
+    if (opts.requireAll || data.name !== undefined || data.title !== undefined) {
+      const name = data.name || data.title;
+      if (!name || !name.toString().trim()) errors.push("Product name/title is required");
+    }
+
+    if (opts.requireAll || data.price !== undefined) {
+      const price = Number(data.price);
+      if (isNaN(price) || price <= 0) errors.push("Price must be a positive number");
+    }
+
+    if (data.discountPrice !== undefined && data.discountPrice !== null) {
+      const dp = Number(data.discountPrice);
+      const p = Number(data.price ?? 0);
+      if (isNaN(dp) || dp < 0) errors.push("Discount price must be non-negative");
+      if (p > 0 && dp >= p) errors.push("Discount price must be less than price");
+    }
+
+    if (opts.requireAll || data.stock !== undefined) {
+      const stock = Number(data.stock);
+      if (isNaN(stock) || stock < 0 || !Number.isInteger(stock)) {
+        errors.push("Stock must be a non-negative integer");
+      }
+    }
+
+    // Category existence check (only when categoryId / category is supplied)
+    const catId = data.category || data.categoryId;
+    if (catId) {
+      const cat = await categoryRepository.findById(catId);
+      if (!cat) errors.push(`Category '${catId}' does not exist`);
+    } else if (opts.requireAll) {
+      errors.push("Category is required");
+    }
+
+    if (errors.length > 0) {
+      throw new AppError(errors.join("; "), HTTP_STATUS.BAD_REQUEST);
+    }
+  }
+
+  // ─── Public API ──────────────────────────────────────────────────────────
+
+  /**
+   * Create a new product.
+   * Validates inputs, then delegates to repository.
    */
   async createProduct(productData, sellerId) {
-    const product = await Product.create({
-      ...productData,
-      seller: sellerId,
-    });
+    await this.#validateProductData(productData, { requireAll: true });
 
-    // Populate category and seller
-    await product.populate([
-      { path: "category", select: "name slug" },
-      { path: "seller", select: "name email" },
-    ]);
+    const images = productData.images || [];
+    delete productData.images;
 
+    // Lock seller to the authenticated user — never trust client payload
+    productData.sellerId = sellerId;
+    delete productData.seller; // strip any client-supplied seller field
+
+    const product = await productRepository.create(productData, images);
     return product;
   }
 
   /**
-   * Get all products with pagination, filters, and search
+   * Get all products with pagination, filters, and search.
+   * Maps status string → isActive boolean.
+   * Parses isFeatured safely regardless of string / boolean input.
    */
   async getAllProducts(queryParams) {
     const {
       page = 1,
-      limit = 10,
+      limit = 12,
       category,
       seller,
       minPrice,
@@ -43,73 +145,28 @@ class ProductService {
       sortOrder = "desc",
     } = queryParams;
 
-    // Build filter object
-    const filter = { isActive: true };
-
-    if (category) {
-      filter.category = category;
-    }
-
-    if (seller) {
-      filter.seller = seller;
-    }
-
-    if (status) {
-      filter.status = status;
-    }
-
-    if (isFeatured !== undefined) {
-      filter.isFeatured = isFeatured === "true";
-    }
-
-    // Price range filter
-    if (minPrice || maxPrice) {
-      filter.price = {};
-      if (minPrice) filter.price.$gte = parseFloat(minPrice);
-      if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
-    }
-
-    // Get pagination params
     const {
       skip,
       limit: validLimit,
       page: validPage,
     } = Pagination.getPaginationParams(page, limit);
 
-    // Build sort object
-    const sort = {};
-    sort[sortBy] = sortOrder === "asc" ? 1 : -1;
+    // Robust status → isActive mapping
+    const isActive = this.#statusToIsActive(status);
 
-    // Execute query
-    let query;
-    if (search) {
-      // Text search
-      query = Product.find({
-        ...filter,
-        $text: { $search: search },
-      }).select({ score: { $meta: "textScore" } });
-      sort.score = { $meta: "textScore" };
-    } else {
-      query = Product.find(filter);
-    }
-
-    // Build the count filter (must match the query filter)
-    const countFilter = search
-      ? { ...filter, $text: { $search: search } }
-      : filter;
-
-    const [products, total] = await Promise.all([
-      query
-        .populate([
-          { path: "category", select: "name slug" },
-          { path: "seller", select: "name email" },
-        ])
-        .sort(sort)
-        .skip(skip)
-        .limit(validLimit)
-        .lean(),
-      Product.countDocuments(countFilter),
-    ]);
+    const { products, total } = await productRepository.findMany({
+      categoryId: category,
+      sellerId: seller,
+      minPrice: minPrice !== undefined ? Number(minPrice) : undefined,
+      maxPrice: maxPrice !== undefined ? Number(maxPrice) : undefined,
+      isActive,
+      isFeatured: this.#parseBool(isFeatured),
+      search: search?.trim() || undefined,
+      sortBy,
+      sortOrder,
+      skip,
+      limit: validLimit,
+    });
 
     return {
       products,
@@ -118,99 +175,55 @@ class ProductService {
   }
 
   /**
-   * Get product by ID
+   * Get single product by ID.
    */
   async getProductById(productId) {
-    const product = await Product.findById(productId)
-      .populate([
-        { path: "category", select: "name slug description" },
-        { path: "seller", select: "name email phone" },
-      ])
-      .lean();
-
-    if (!product) {
-      throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
-    }
-
+    const product = await productRepository.findById(productId);
+    if (!product) throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
     return product;
   }
 
   /**
-   * Update product
+   * Update a product.
+   * Enforces ownership, strips seller fields, validates mutable fields.
    */
   async updateProduct(productId, updateData, userId, userRole) {
-    const product = await Product.findById(productId);
+    const product = await productRepository.findById(productId);
+    if (!product) throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
 
-    if (!product) {
-      throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
-    }
+    // Security: ownership check using seller.id (Prisma), not _id (Mongo)
+    this.#assertOwnership(product, userId, userRole);
 
-    // Check ownership (seller can only update their own products)
-    if (
-      userRole !== "admin" &&
-      product.seller.toString() !== userId.toString()
-    ) {
-      throw new AppError(
-        "You do not have permission to update this product",
-        HTTP_STATUS.FORBIDDEN,
-      );
-    }
-
-    // Prevent updating seller field
+    // Security: never allow seller reassignment from client
     delete updateData.seller;
+    delete updateData.sellerId;
 
-    // Update product
-    Object.assign(product, updateData);
-    await product.save();
+    // Validate only the fields being updated
+    await this.#validateProductData(updateData, { requireAll: false });
 
-    // Populate and return
-    await product.populate([
-      { path: "category", select: "name slug" },
-      { path: "seller", select: "name email" },
-    ]);
-
-    return product;
+    const updated = await productRepository.update(productId, updateData);
+    return updated;
   }
 
   /**
-   * Delete product (soft delete)
+   * Soft-delete a product.
+   * Enforces ownership.
    */
   async deleteProduct(productId, userId, userRole) {
-    const product = await Product.findById(productId);
+    const product = await productRepository.findById(productId);
+    if (!product) throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
 
-    if (!product) {
-      throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
-    }
+    // Security: ownership check using seller.id (Prisma)
+    this.#assertOwnership(product, userId, userRole);
 
-    // Check ownership (seller can only delete their own products)
-    if (
-      userRole !== "admin" &&
-      product.seller.toString() !== userId.toString()
-    ) {
-      throw new AppError(
-        "You do not have permission to delete this product",
-        HTTP_STATUS.FORBIDDEN,
-      );
-    }
-
-    product.isActive = false;
-    product.status = PRODUCT_STATUS.INACTIVE;
-    await product.save();
-
-    return product;
+    return productRepository.softDelete(productId);
   }
 
   /**
-   * Get products by seller
+   * Get products filtered by a specific seller.
    */
   async getProductsBySeller(sellerId, queryParams) {
-    const { page = 1, limit = 10, status } = queryParams;
-
-    const filter = { seller: sellerId };
-
-    if (status) {
-      filter.status = status;
-    }
+    const { page = 1, limit = 12, status } = queryParams;
 
     const {
       skip,
@@ -218,15 +231,14 @@ class ProductService {
       page: validPage,
     } = Pagination.getPaginationParams(page, limit);
 
-    const [products, total] = await Promise.all([
-      Product.find(filter)
-        .populate("category", "name slug")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(validLimit)
-        .lean(),
-      Product.countDocuments(filter),
-    ]);
+    const isActive = this.#statusToIsActive(status);
+
+    const { products, total } = await productRepository.findMany({
+      sellerId,
+      isActive,
+      skip,
+      limit: validLimit,
+    });
 
     return {
       products,
@@ -235,39 +247,44 @@ class ProductService {
   }
 
   /**
-   * Update product stock
+   * Update product stock — SAFE implementation.
+   *
+   * Instead of blindly setting stock = quantity, we:
+   *  1. Fetch the product to verify it exists
+   *  2. Parse quantity as an absolute target value (admin sets exact stock)
+   *  3. Prevent negative stock
+   *
+   * If you need delta-based adjustment (e.g., +5, -3) the order / cart
+   * modules should call productRepository.adjustStock(id, delta, tx) directly
+   * within their own transactions.
    */
   async updateStock(productId, quantity) {
-    const product = await Product.findById(productId);
+    // 1. Verify product exists
+    const product = await productRepository.findById(productId, false);
+    if (!product) throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
 
-    if (!product) {
-      throw new AppError("Product not found", HTTP_STATUS.NOT_FOUND);
+    // 2. Parse and validate
+    const newStock = parseInt(quantity, 10);
+    if (isNaN(newStock) || !Number.isInteger(newStock)) {
+      throw new AppError("Stock quantity must be an integer", HTTP_STATUS.BAD_REQUEST);
     }
 
-    product.stock = quantity;
-    await product.save();
+    // 3. Prevent negative values
+    if (newStock < 0) {
+      throw new AppError("Stock cannot be negative", HTTP_STATUS.BAD_REQUEST);
+    }
 
-    return product;
+    // 4. Apply update
+    const updated = await productRepository.update(productId, { stock: newStock });
+    return updated;
   }
 
   /**
-   * Get featured products
+   * Get featured products.
    */
-  async getFeaturedProducts(limit = 10) {
-    const products = await Product.find({
-      isFeatured: true,
-      isActive: true,
-      status: PRODUCT_STATUS.ACTIVE,
-    })
-      .populate([
-        { path: "category", select: "name slug" },
-        { path: "seller", select: "name" },
-      ])
-      .sort({ averageRating: -1, totalSales: -1 })
-      .limit(limit)
-      .lean();
-
-    return products;
+  async getFeaturedProducts(limit = 8) {
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 8, 1), 50);
+    return productRepository.findFeatured(parsedLimit);
   }
 }
 

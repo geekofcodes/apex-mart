@@ -1,13 +1,14 @@
 import app from "./app.js";
 import envConfig from "./config/env.config.js";
-import connectDB from "./config/db.config.js";
+import prisma from "./config/prisma.js";
 import { configureCloudinary } from "./config/cloud.config.js";
 import logger from "./utils/logger.js";
 
 const startServer = async () => {
   try {
-    // Connect to MongoDB
-    await connectDB();
+    // Connect to PostgreSQL via Prisma
+    await prisma.$connect();
+    logger.info("Connected to PostgreSQL via Prisma");
 
     // Configure Cloudinary
     configureCloudinary();
@@ -22,10 +23,12 @@ const startServer = async () => {
     });
 
     // Graceful shutdown
-    const gracefulShutdown = (signal) => {
+    const gracefulShutdown = async (signal) => {
       logger.info(`${signal} received. Starting graceful shutdown...`);
-      server.close(() => {
+      server.close(async () => {
         logger.info("HTTP server closed");
+        await prisma.$disconnect();
+        logger.info("Prisma disconnected");
         process.exit(0);
       });
 
@@ -52,6 +55,7 @@ const startServer = async () => {
     });
   } catch (error) {
     logger.error("Failed to start server:", error);
+    await prisma.$disconnect();
     process.exit(1);
   }
 };

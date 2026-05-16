@@ -16,22 +16,28 @@ import {
 
 const app = express();
 
-// Rate limiting
-app.use("/api", generalLimiter);
-app.use("/api/v1/auth", authLimiter);
+// TRUST PROXY (important for cookies + rate limiting in future deployment)
+app.set("trust proxy", 1);
 
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
-app.use(
-  cors({
-    origin: envConfig.corsOrigin,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
+// CORS CONFIG
+const corsOptions = {
+  origin: "http://localhost:5173",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options("*", cors(corsOptions));
+
+// Rate limiting
+app.use("/api", generalLimiter);
+app.use("/api/v1/auth", authLimiter);
 
 // Body parser middleware
 app.use(express.json({ limit: "10mb" }));
@@ -43,13 +49,13 @@ app.use(cookieParser());
 // Compression middleware
 app.use(compression());
 
-// Request logging middleware
+// Request logging
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path}`);
   next();
 });
 
-// Health check endpoint
+// Health check
 app.get("/health", (req, res) => {
   res.status(200).json({
     success: true,
@@ -58,7 +64,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-// API Routes - v1
+// Routes
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
@@ -66,6 +72,7 @@ import categoryRoutes from "./routes/category.routes.js";
 import cartRoutes from "./routes/cart.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
@@ -74,11 +81,12 @@ app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/cart", cartRoutes);
 app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
+app.use("/api/v1/admin", adminRoutes);
 
-// 404 handler - must be after all routes
+// 404
 app.use(notFoundHandler);
 
-// Global error handler - must be last
+// Error handler
 app.use(errorHandler);
 
 export default app;

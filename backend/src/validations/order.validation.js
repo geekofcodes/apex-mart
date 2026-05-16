@@ -120,11 +120,8 @@ export const getOrdersQuerySchema = Joi.object({
     .valid(...Object.values(PAYMENT_STATUS))
     .optional(),
   userId: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
-    .optional()
-    .messages({
-      "string.pattern.base": "Invalid user ID format",
-    }),
+    .min(1)
+    .optional(),
 });
 
 /**
@@ -132,10 +129,9 @@ export const getOrdersQuerySchema = Joi.object({
  */
 export const objectIdSchema = Joi.object({
   id: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
+    .min(1)
     .required()
     .messages({
-      "string.pattern.base": "Invalid order ID format",
       "any.required": "Order ID is required",
     }),
 });

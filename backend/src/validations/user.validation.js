@@ -85,10 +85,9 @@ export const updateUserSchema = Joi.object({
  */
 export const objectIdSchema = Joi.object({
   id: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
+    .min(1)
     .required()
     .messages({
-      "string.pattern.base": "Invalid user ID format",
       "any.required": "User ID is required",
     }),
 });

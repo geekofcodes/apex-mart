@@ -30,17 +30,24 @@ export const fetchProducts = createAsyncThunk(
   ) => {
     try {
       const state = getState().product;
-      const page = isNewSearch ? 1 : state.pagination.page;
       const currentFilters = state.filters;
+
+      // 🔥 Prevent extra API calls when no more data
+      if (!isNewSearch && !state.pagination.hasMore) {
+        return rejectWithValue("__NO_MORE__");
+      }
+
+      const page = isNewSearch ? 1 : state.pagination.page;
 
       const queryParams = {
         page,
         limit: state.pagination.limit,
         ...currentFilters,
-        ...params, // Override with any passed params
+        ...params,
       };
 
-      const response = await productAPI.getProducts(queryParams, signal);
+      const response = await productAPI.getProducts(queryParams);
+
       return { data: response.data, meta: response.meta, isNewSearch };
     } catch (error) {
       if (error.name === "CanceledError" || error.name === "AbortError") {
@@ -89,7 +96,7 @@ const productSlice = createSlice({
   reducers: {
     setFilters: (state, action) => {
       state.filters = { ...state.filters, ...action.payload };
-      state.pagination.page = 1; // Reset to page 1 on filter change
+      state.pagination.page = 1;
       state.pagination.hasMore = true;
     },
     clearFilters: (state) => {
@@ -97,9 +104,7 @@ const productSlice = createSlice({
       state.pagination.page = 1;
       state.pagination.hasMore = true;
     },
-    resetProductState: (state) => {
-      return initialState;
-    },
+    resetProductState: () => initialState,
     resetPagination: (state) => {
       state.pagination = initialState.pagination;
       state.products = [];
@@ -112,39 +117,48 @@ const productSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
+
       .addCase(fetchProducts.fulfilled, (state, action) => {
         state.loading = false;
+
         const { data, meta, isNewSearch } = action.payload;
 
         if (isNewSearch) {
+          // Fresh load
           state.products = data;
-          state.pagination.page = 2; // Next page is 2
+          state.pagination.page = 2;
         } else {
-          // Filter out duplicates
+          // Remove duplicates safely
+          const existingIds = new Set(state.products.map((p) => p.id));
+
           const newProducts = data.filter(
-            (newP) =>
-              !state.products.some(
-                (existingP) =>
-                  existingP.id === newP.id || existingP._id === newP._id,
-              ),
+            (p) => !existingIds.has(p.id),
           );
+
           state.products = [...state.products, ...newProducts];
-          state.pagination.page =
-            (meta?.page ||
-              Math.floor(state.products.length / state.pagination.limit)) + 1;
+          // state.products = [...state.products, ...data];
+
+          // Increment page correctly
+          state.pagination.page = state.pagination.page + 1;
         }
 
         state.pagination.total = meta?.total || 0;
 
-        // Determine if more products exist
-        if (data.length < state.pagination.limit) {
-          state.pagination.hasMore = false;
-        } else {
-          state.pagination.hasMore = true;
-        }
+        // ✅ Correct hasMore logic
+        state.pagination.hasMore =
+          state.products.length < state.pagination.total;
       })
+
       .addCase(fetchProducts.rejected, (state, action) => {
-        if (action.payload === "__ABORTED__") return;
+        // Silently ignore guard-rail rejections — no UI error, no loading leak
+        if (
+          action.payload === "__ABORTED__" ||
+          action.payload === "__NO_MORE__"
+        ) {
+          state.loading = false; // always reset loading
+          return;
+        }
+
         state.loading = false;
         state.error = action.payload;
       })
@@ -155,22 +169,28 @@ const productSlice = createSlice({
         state.error = null;
         state.activeProduct = null;
       })
+
       .addCase(fetchProductDetails.fulfilled, (state, action) => {
         state.loading = false;
         state.activeProduct = action.payload;
       })
+
       .addCase(fetchProductDetails.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+
+      // Create Product
       .addCase(createProduct.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
+
       .addCase(createProduct.fulfilled, (state, action) => {
         state.loading = false;
         state.products.unshift(action.payload);
       })
+
       .addCase(createProduct.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;

@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import envConfig from "../config/env.config.js";
-import User from "../models/user.model.js";
+import userRepository from "../repositories/user.repository.js";
 import { AppError } from "./error.middleware.js";
 import { HTTP_STATUS } from "../utils/constants.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -32,8 +32,8 @@ export const protect = asyncHandler(async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, envConfig.jwtAccessSecret);
 
-    // Get user from token
-    const user = await User.findById(decoded.id).select("-password");
+    // Get user from token via repository (no password returned by default)
+    const user = await userRepository.findById(decoded.id);
     if (!user) {
       throw new AppError("No user found with this id", HTTP_STATUS.NOT_FOUND);
     }
@@ -46,6 +46,8 @@ export const protect = asyncHandler(async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    // Re-throw AppErrors (not found, deactivated) directly
+    if (error instanceof AppError) throw error;
     throw new AppError(
       "Not authorized to access this route",
       HTTP_STATUS.UNAUTHORIZED,
@@ -74,7 +76,7 @@ export const optionalAuth = asyncHandler(async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, envConfig.jwtAccessSecret);
-    const user = await User.findById(decoded.id).select("-password");
+    const user = await userRepository.findById(decoded.id);
     if (user && user.isActive) {
       req.user = user;
     }
@@ -86,3 +88,19 @@ export const optionalAuth = asyncHandler(async (req, res, next) => {
 
 // Alias for compatibility
 export const authenticate = protect;
+
+/**
+ * Role authorization middleware
+ * @param {...string} roles - Allowed roles (e.g., "ADMIN", "SELLER")
+ */
+export const authorize = (...roles) => (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (roles.length && !roles.includes(req.user.role)) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
+  next();
+};

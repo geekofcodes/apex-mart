@@ -18,10 +18,9 @@ export const createProductSchema = Joi.object({
   }),
   discountPrice: Joi.number().min(0).optional().allow(null),
   category: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
+    .min(1)
     .required()
     .messages({
-      "string.pattern.base": "Invalid category ID format",
       "any.required": "Product category is required",
     }),
   stock: Joi.number().integer().min(0).default(0),
@@ -52,7 +51,7 @@ export const updateProductSchema = Joi.object({
   price: Joi.number().min(0).optional(),
   discountPrice: Joi.number().min(0).optional().allow(null),
   category: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
+    .min(1)
     .optional(),
   stock: Joi.number().integer().min(0).optional(),
   images: Joi.array()
@@ -95,10 +94,10 @@ export const getProductsQuerySchema = Joi.object({
  */
 export const objectIdSchema = Joi.object({
   id: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
+    .min(1)
     .required()
     .messages({
-      "string.pattern.base": "Invalid ID format",
+      "any.required": "ID is required",
     }),
 });
 
@@ -107,9 +106,9 @@ export const objectIdSchema = Joi.object({
  */
 export const sellerIdSchema = Joi.object({
   sellerId: Joi.string()
-    .pattern(/^[0-9a-fA-F]{24}$/)
+    .min(1)
     .required()
     .messages({
-      "string.pattern.base": "Invalid seller ID format",
+      "any.required": "Seller ID is required",
     }),
 });

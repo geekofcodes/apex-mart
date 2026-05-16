@@ -3,6 +3,10 @@ node_modules/
 package-lock.json
 yarn.lock
 
+# Documentation
+docs/
+walkthrough.md
+
 # Environment variables
 .env
 .env.local
@@ -36,3 +40,5 @@ build/
 # Uploads
 uploads/
 temp/
+
+/src/generated/prisma

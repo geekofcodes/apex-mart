@@ -1,9 +1,18 @@
-import User from "../models/user.model.js";
+import userRepository from "../repositories/user.repository.js";
+import {
+  hashPassword,
+  comparePassword,
+  generateAccessToken,
+  generateRefreshToken,
+  verifyToken,
+} from "../utils/auth.utils.js";
+import envConfig from "../config/env.config.js";
 import { AppError } from "../middlewares/error.middleware.js";
 import { HTTP_STATUS } from "../utils/constants.js";
 
 /**
  * Auth Service - Contains all authentication business logic
+ * Uses PostgreSQL/Prisma via userRepository
  */
 class AuthService {
   /**
@@ -13,7 +22,7 @@ class AuthService {
     const { name, email, password, role, phone } = userData;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await userRepository.findByEmail(email);
     if (existingUser) {
       throw new AppError(
         "User with this email already exists",
@@ -21,24 +30,28 @@ class AuthService {
       );
     }
 
-    // Create user
-    const user = await User.create({
+    // Hash password before saving
+    const hashedPassword = await hashPassword(password);
+
+    // Create user via repository
+    const user = await userRepository.create({
       name,
       email,
-      password,
-      role: role || "customer",
+      hashedPassword,
+      role: role || "CUSTOMER",
       phone,
     });
 
     // Generate tokens
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
 
     // Save refresh token to database
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    await userRepository.updateRefreshToken(user.id, refreshToken);
 
-    return { user, accessToken, refreshToken };
+    const { password: _, ...userWithoutPassword } = user;
+
+    return { user: userWithoutPassword, accessToken, refreshToken };
   }
 
   /**
@@ -46,27 +59,28 @@ class AuthService {
    */
   async login(email, password) {
     // Find user and include password field
-    const user = await User.findOne({ email }).select("+password");
+    const user = await userRepository.findByEmail(email, true);
 
     if (!user) {
       throw new AppError("Invalid email or password", HTTP_STATUS.UNAUTHORIZED);
     }
 
     // Check password
-    const isPasswordValid = await user.comparePassword(password);
+    const isPasswordValid = await comparePassword(password, user.password);
     if (!isPasswordValid) {
       throw new AppError("Invalid email or password", HTTP_STATUS.UNAUTHORIZED);
     }
 
     // Generate tokens
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    // Make sure we strip password before sending user object back
+    const { password: _, ...userWithoutPassword } = user;
+    const accessToken = generateAccessToken(userWithoutPassword);
+    const refreshToken = generateRefreshToken(userWithoutPassword);
 
     // Save refresh token to database
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    await userRepository.updateRefreshToken(user.id, refreshToken);
 
-    return { user, accessToken, refreshToken };
+    return { user: userWithoutPassword, accessToken, refreshToken };
   }
 
   /**
@@ -80,9 +94,7 @@ class AuthService {
     // Verify refresh token
     let decoded;
     try {
-      const jwt = (await import("jsonwebtoken")).default;
-      const envConfig = (await import("../config/env.config.js")).default;
-      decoded = jwt.verify(refreshToken, envConfig.jwt.refreshSecret);
+      decoded = verifyToken(refreshToken, envConfig.jwtRefreshSecret);
     } catch (error) {
       throw new AppError(
         "Invalid or expired refresh token",
@@ -91,7 +103,7 @@ class AuthService {
     }
 
     // Find user and verify stored refresh token
-    const user = await User.findById(decoded._id).select("+refreshToken");
+    const user = await userRepository.findById(decoded.id, false, true);
     if (!user) {
       throw new AppError("User not found", HTTP_STATUS.UNAUTHORIZED);
     }
@@ -101,9 +113,10 @@ class AuthService {
     }
 
     // Generate new access token
-    const newAccessToken = user.generateAccessToken();
+    const { refreshToken: _, ...userWithoutToken } = user;
+    const newAccessToken = generateAccessToken(userWithoutToken);
 
-    return { user, accessToken: newAccessToken };
+    return { user: userWithoutToken, accessToken: newAccessToken };
   }
 
   /**
@@ -111,12 +124,9 @@ class AuthService {
    */
   async logout(userId) {
     // Remove refresh token from database
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $unset: { refreshToken: 1 } },
-      { new: true },
-    );
-
+    await userRepository.updateRefreshToken(userId, null);
+    
+    const user = await userRepository.findById(userId);
     if (!user) {
       throw new AppError("User not found", HTTP_STATUS.NOT_FOUND);
     }
@@ -128,7 +138,7 @@ class AuthService {
    * Get user profile
    */
   async getProfile(userId) {
-    const user = await User.findById(userId);
+    const user = await userRepository.findById(userId);
 
     if (!user) {
       throw new AppError("User not found", HTTP_STATUS.NOT_FOUND);
@@ -141,26 +151,20 @@ class AuthService {
    * Update user profile
    */
   async updateProfile(userId, updateData) {
-    // Prevent updating sensitive fields
-    const allowedFields = ["name", "phone", "avatar", "address"];
-    const filteredData = {};
+    // Allowed fields
+    const { name, phone, avatar } = updateData;
 
-    Object.keys(updateData).forEach((key) => {
-      if (allowedFields.includes(key)) {
-        filteredData[key] = updateData[key];
+    try {
+      const user = await userRepository.updateProfile(userId, { name, phone, avatar });
+      return user;
+    } catch (error) {
+      // Prisma error if user not found is handled in repo/middleware, 
+      // but let's be explicit if we want to mimic old behavior
+      if (error.code === 'P2025') {
+        throw new AppError("User not found", HTTP_STATUS.NOT_FOUND);
       }
-    });
-
-    const user = await User.findByIdAndUpdate(userId, filteredData, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!user) {
-      throw new AppError("User not found", HTTP_STATUS.NOT_FOUND);
+      throw error;
     }
-
-    return user;
   }
 
   /**
@@ -168,14 +172,14 @@ class AuthService {
    */
   async changePassword(userId, currentPassword, newPassword) {
     // Find user with password
-    const user = await User.findById(userId).select("+password");
+    const user = await userRepository.findById(userId, true);
 
     if (!user) {
       throw new AppError("User not found", HTTP_STATUS.NOT_FOUND);
     }
 
     // Verify current password
-    const isPasswordValid = await user.comparePassword(currentPassword);
+    const isPasswordValid = await comparePassword(currentPassword, user.password);
     if (!isPasswordValid) {
       throw new AppError(
         "Current password is incorrect",
@@ -183,19 +187,21 @@ class AuthService {
       );
     }
 
+    // Hash new password
+    const hashedPassword = await hashPassword(newPassword);
+
     // Update password
-    user.password = newPassword;
-    await user.save();
+    await userRepository.updatePassword(userId, hashedPassword);
 
     // Generate new tokens
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    const { password: _, ...userWithoutPassword } = user;
+    const accessToken = generateAccessToken(userWithoutPassword);
+    const refreshToken = generateRefreshToken(userWithoutPassword);
 
     // Save new refresh token
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    await userRepository.updateRefreshToken(userId, refreshToken);
 
-    return { user, accessToken, refreshToken };
+    return { user: userWithoutPassword, accessToken, refreshToken };
   }
 }
 

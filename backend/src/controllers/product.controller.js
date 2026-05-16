@@ -15,7 +15,7 @@ import { HTTP_STATUS } from "../utils/constants.js";
  * @access  Private/Seller/Admin
  */
 export const createProduct = asyncHandler(async (req, res) => {
-  const product = await productService.createProduct(req.body, req.user._id);
+  const product = await productService.createProduct(req.body, req.user.id);
 
   return ApiResponse.success(
     res,
@@ -104,7 +104,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const product = await productService.updateProduct(
     req.params.id,
     req.body,
-    req.user._id,
+    req.user.id,
     req.user.role,
   );
 
@@ -123,7 +123,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
 export const deleteProduct = asyncHandler(async (req, res) => {
   await productService.deleteProduct(
     req.params.id,
-    req.user._id,
+    req.user.id,
     req.user.role,
   );
 
