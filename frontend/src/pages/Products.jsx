@@ -14,7 +14,7 @@ const Products = () => {
   const observerTarget = useRef(null);
   const fetchingRef = useRef(false);
   const initialLoadDone = useRef(false);
-  const lastTriggerTime = useRef(0); // 🔥 throttle control
+  const lastTriggerTime = useRef(0);
 
   const { products, loading, error, pagination, filters } = useAppSelector(
     (state) => state.product,
@@ -23,7 +23,6 @@ const Products = () => {
   const search = searchParams.get("search") || "";
   const category = searchParams.get("category") || "";
 
-  // 🔥 INITIAL LOAD
   useEffect(() => {
     const newFilters = {};
     let hasChanges = false;
@@ -53,12 +52,12 @@ const Products = () => {
       });
   }, [search, category, dispatch]);
 
-  // 🔥 INFINITE SCROLL HANDLER (FINAL FIX)
+  // INFINITE SCROLL HANDLER
   const handleObserver = useCallback(
     (entries) => {
       const now = Date.now();
 
-      // 🔥 THROTTLE (prevent rapid triggers)
+      // THROTTLE (prevent rapid triggers)
       if (now - lastTriggerTime.current < 500) return;
 
       const [target] = entries;
@@ -74,7 +73,7 @@ const Products = () => {
         lastTriggerTime.current = now;
         fetchingRef.current = true;
 
-        // 🔥 DELAY (smooth UX)
+        // DELAY (smooth UX)
         setTimeout(() => {
           dispatch(fetchProducts({ isNewSearch: false }))
             .unwrap()
@@ -94,7 +93,7 @@ const Products = () => {
 
     const observer = new IntersectionObserver(handleObserver, {
       threshold: 0.1,
-      rootMargin: "300px", // 🔥 increased for smoother preloading
+      rootMargin: "300px",
     });
 
     observer.observe(element);
@@ -154,7 +153,7 @@ const Products = () => {
               <ProductCard key={product.id} product={product} />
             ))}
 
-            {/* 🔥 BETTER LOADING BUFFER */}
+            {/* LOADING BUFFER */}
             {loading && <ProductListSkeleton count={8} />}
           </div>
 
