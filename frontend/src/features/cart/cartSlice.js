@@ -64,11 +64,6 @@ export const removeFromCart = createAsyncThunk(
   },
 );
 
-export const clearCart = createAsyncThunk("cart/clear", async () => {
-  // Logic to clear cart on frontend if needed, or re-fetch empty cart
-  return null;
-});
-
 const initialState = {
   items: [],
   totalAmount: 0,

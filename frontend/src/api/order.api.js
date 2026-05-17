@@ -1,11 +1,12 @@
 import axiosInstance from "./axios";
 
 export const orderAPI = {
+  createOrder: async (data) => {
+    const response = await axiosInstance.post("/orders", data);
+    return response.data;
+  },
   // Get current user's order history
   getMyOrders: async (page = 1, limit = 10) => {
-    // Note: The API contract says /orders/my-orders returns OrderDTO[] directly without pagination meta in the main response format for this specific endpoint,
-    // but good practice to handle potential query params if supported later.
-    // For now we'll just hit the endpoint.
     const response = await axiosInstance.get("/orders/my-orders");
     return response.data;
   },

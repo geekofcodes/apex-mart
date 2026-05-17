@@ -5,7 +5,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAppSelector } from "@/app/hooks";
 import { selectCartItems, selectCartTotal } from "@/features/cart/cartSlice";
-import { cartAPI } from "@/api/cart.api"; // Direct API call for checkout to handle success redirection manually
+import { useDispatch } from "react-redux";
+import { resetCart } from "@/features/cart/cartSlice";
+import { orderAPI } from "@/api/order.api";
 import { formatCurrency } from "@/utils/helpers";
 import {
   ArrowLeft,
@@ -33,6 +35,7 @@ const Checkout = () => {
   const cartItems = useAppSelector(selectCartItems);
   const cartTotal = useAppSelector(selectCartTotal);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const dispatch = useDispatch();
 
   const {
     register,
@@ -48,8 +51,6 @@ const Checkout = () => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      // Construct payload matching API contract orderDTO structure roughly
-      // API expects: { shippingAddress: { line1, city, state, pincode } }
       const orderPayload = {
         shippingAddress: {
           fullName: data.fullName,
@@ -59,13 +60,13 @@ const Checkout = () => {
           state: data.state,
           postalCode: data.zipCode,
         },
-        paymentMethod: "COD", // Defaulting to COD as per UI
+        paymentMethod: "COD",
       };
 
-      await cartAPI.createOrder(orderPayload);
+      const res = await orderAPI.createOrder(orderPayload);
+      dispatch(resetCart());
       toast.success("Order placed successfully! 🎉");
-      // navigate("/order-confirmation"); // Prepare for next step or just /orders
-      navigate("/orders");
+      navigate(`/orders/${res.data.id}`);
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Failed to place order");
