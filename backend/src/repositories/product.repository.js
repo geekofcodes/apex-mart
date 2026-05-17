@@ -19,15 +19,35 @@ class ProductRepository {
   /** Relations loaded for list endpoints (lean — no heavy sub-relations) */
   #listInclude = {
     category: { select: { id: true, name: true, slug: true } },
-    seller:   { select: { id: true, name: true, email: true } },
-    images:   { orderBy: { sortOrder: "asc" }, select: { id: true, imageUrl: true, publicId: true, altText: true, sortOrder: true } },
+    seller: { select: { id: true, name: true, email: true } },
+    images: {
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        imageUrl: true,
+        publicId: true,
+        altText: true,
+        sortOrder: true,
+      },
+    },
   };
 
   /** Relations loaded for detail / write endpoints */
   #detailInclude = {
-    category: { select: { id: true, name: true, slug: true, description: true } },
-    seller:   { select: { id: true, name: true, email: true, phone: true } },
-    images:   { orderBy: { sortOrder: "asc" }, select: { id: true, imageUrl: true, publicId: true, altText: true, sortOrder: true } },
+    category: {
+      select: { id: true, name: true, slug: true, description: true },
+    },
+    seller: { select: { id: true, name: true, email: true, phone: true } },
+    images: {
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        imageUrl: true,
+        publicId: true,
+        altText: true,
+        sortOrder: true,
+      },
+    },
   };
 
   // ─── Private helpers ─────────────────────────────────────────────────────
@@ -54,61 +74,56 @@ class ProductRepository {
 
     return {
       // Identity
-      id:  p.id,
+      id: p.id,
 
       // Core fields
-      name:            p.title,       // DTOs expect 'name'
-      slug:            p.slug,
-      description:     p.description,
-      price:           p.price,
-      discountPrice:   p.discountPrice ?? null,
+      name: p.title, // DTOs expect 'name'
+      slug: p.slug,
+      description: p.description,
+      price: p.price,
+      discountPrice: p.discountPrice ?? null,
       finalPrice,
       discountPercentage,
 
       // Stock
-      stock:   p.stock,
+      stock: p.stock,
       inStock: p.stock > 0,
 
       // Extra attributes
-      brand:          p.brand ?? null,
-      sku:            p.sku ?? null,
+      brand: p.brand ?? null,
+      sku: p.sku ?? null,
       specifications: p.specifications ?? {},
-      tags:           p.tags ?? [],
+      tags: p.tags ?? [],
 
       // Derived / computed
-      status:    this.#deriveStatus(p),
-      isActive:  p.isActive,
+      status: this.#deriveStatus(p),
+      isActive: p.isActive,
       isFeatured: p.isFeatured,
 
       // Stats
       averageRating: p.averageRating,
-      totalReviews:  p.totalReviews,
-      totalSales:    p.totalSales,
+      totalReviews: p.totalReviews,
+      totalSales: p.totalSales,
 
       category: p.category
         ? {
-            id:          p.category.id,
-            name:        p.category.name,
-            slug:        p.category.slug,
+            id: p.category.id,
+            name: p.category.name,
+            slug: p.category.slug,
             description: p.category.description ?? null,
           }
         : null,
 
       seller: p.seller
         ? {
-            id:    p.seller.id,
-            name:  p.seller.name,
+            id: p.seller.id,
+            name: p.seller.name,
             email: p.seller.email,
             phone: p.seller.phone ?? null,
           }
         : null,
 
-      images: (p.images ?? []).map((img) => ({
-        id:       img.id,
-        url:      img.imageUrl,
-        publicId: img.publicId ?? null,
-        altText:  img.altText ?? "",
-      })),
+      images: (p.images ?? []).map((img) => img.imageUrl),
 
       // Timestamps
       createdAt: p.createdAt,
@@ -125,7 +140,7 @@ class ProductRepository {
    */
   async findById(id, withRelations = true) {
     const product = await prisma.product.findUnique({
-      where:   { id },
+      where: { id },
       include: withRelations ? this.#detailInclude : undefined,
     });
     return this.#normalise(product);
@@ -136,7 +151,7 @@ class ProductRepository {
    */
   async findBySlug(slug) {
     const product = await prisma.product.findUnique({
-      where:   { slug },
+      where: { slug },
       include: this.#detailInclude,
     });
     return this.#normalise(product);
@@ -169,9 +184,9 @@ class ProductRepository {
     maxPrice,
     isActive,
     isFeatured,
-    sortBy    = "createdAt",
+    sortBy = "createdAt",
     sortOrder = "desc",
-    skip  = 0,
+    skip = 0,
     limit = 12,
   } = {}) {
     const where = {};
@@ -181,7 +196,7 @@ class ProductRepository {
 
     // Indexed FK filters — use the DB column directly for index hit
     if (categoryId) where.categoryId = categoryId;
-    if (sellerId)   where.sellerId   = sellerId;
+    if (sellerId) where.sellerId = sellerId;
 
     // Boolean filter (already parsed by service before reaching here)
     if (isFeatured !== undefined) where.isFeatured = isFeatured;
@@ -189,33 +204,41 @@ class ProductRepository {
     // Price range — guard against NaN
     if (minPrice != null || maxPrice != null) {
       where.price = {};
-      if (minPrice != null && !isNaN(minPrice)) where.price.gte = Number(minPrice);
-      if (maxPrice != null && !isNaN(maxPrice)) where.price.lte = Number(maxPrice);
+      if (minPrice != null && !isNaN(minPrice))
+        where.price.gte = Number(minPrice);
+      if (maxPrice != null && !isNaN(maxPrice))
+        where.price.lte = Number(maxPrice);
     }
 
     // Full-text search across indexed text columns
     if (search) {
       where.OR = [
-        { title:       { contains: search, mode: "insensitive" } },
+        { title: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
-        { brand:       { contains: search, mode: "insensitive" } },
-        { tags:        { has: search } },
+        { brand: { contains: search, mode: "insensitive" } },
+        { tags: { has: search } },
       ];
     }
 
     // Whitelist sortBy to prevent injection on ORDER BY
-    const ALLOWED_SORTS = new Set(["price", "createdAt", "averageRating", "totalSales", "stock"]);
+    const ALLOWED_SORTS = new Set([
+      "price",
+      "createdAt",
+      "averageRating",
+      "totalSales",
+      "stock",
+    ]);
     const orderField = ALLOWED_SORTS.has(sortBy) ? sortBy : "createdAt";
-    const orderDir   = sortOrder === "asc" ? "asc" : "desc";
+    const orderDir = sortOrder === "asc" ? "asc" : "desc";
 
     // Run count + data queries in parallel
     const [rows, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        include:  this.#listInclude,
-        orderBy:  { [orderField]: orderDir },
-        skip:     Math.max(0, skip),
-        take:     Math.min(limit, 100), // hard cap at 100 rows per page
+        include: this.#listInclude,
+        orderBy: { [orderField]: orderDir },
+        skip: Math.max(0, skip),
+        take: Math.min(limit, 100), // hard cap at 100 rows per page
       }),
       prisma.product.count({ where }),
     ]);
@@ -243,26 +266,27 @@ class ProductRepository {
     // (validation already done in service), but guard here as well.
     const product = await prisma.product.create({
       data: {
-        title:       data.name || data.title,
-        slug:        data.slug,
+        title: data.name || data.title,
+        slug: data.slug,
         description: data.description,
-        price:       Number(data.price),
-        discountPrice: data.discountPrice != null ? Number(data.discountPrice) : null,
-        stock:       Math.max(0, parseInt(data.stock ?? 0, 10)),
-        brand:       data.brand   ?? null,
-        sku:         data.sku     ?? null,
+        price: Number(data.price),
+        discountPrice:
+          data.discountPrice != null ? Number(data.discountPrice) : null,
+        stock: Math.max(0, parseInt(data.stock ?? 0, 10)),
+        brand: data.brand ?? null,
+        sku: data.sku ?? null,
         specifications: data.specifications ?? undefined,
-        tags:        data.tags    ?? [],
-        isActive:    data.isActive  ?? true,
-        isFeatured:  data.isFeatured ?? false,
-        sellerId:    data.seller  || data.sellerId,
-        categoryId:  data.category || data.categoryId,
+        tags: data.tags ?? [],
+        isActive: data.isActive ?? true,
+        isFeatured: data.isFeatured ?? false,
+        sellerId: data.seller || data.sellerId,
+        categoryId: data.category || data.categoryId,
         images: images.length
           ? {
               create: images.map((img, idx) => ({
-                imageUrl:  img.url || img.imageUrl,
-                publicId:  img.publicId  ?? null,
-                altText:   img.altText   ?? "",
+                imageUrl: img.url || img.imageUrl,
+                publicId: img.publicId ?? null,
+                altText: img.altText ?? "",
                 sortOrder: img.sortOrder ?? idx,
               })),
             }
@@ -282,34 +306,39 @@ class ProductRepository {
     const updateData = {};
 
     // Title accepts either 'name' (DTO) or 'title' (Prisma)
-    if (data.name  !== undefined) updateData.title       = data.name;
-    if (data.title !== undefined) updateData.title       = data.title;
+    if (data.name !== undefined) updateData.title = data.name;
+    if (data.title !== undefined) updateData.title = data.title;
 
-    if (data.slug          !== undefined) updateData.slug          = data.slug;
-    if (data.description   !== undefined) updateData.description   = data.description;
-    if (data.price         !== undefined) updateData.price         = Number(data.price);
+    if (data.slug !== undefined) updateData.slug = data.slug;
+    if (data.description !== undefined)
+      updateData.description = data.description;
+    if (data.price !== undefined) updateData.price = Number(data.price);
     if (data.discountPrice !== undefined) {
-      updateData.discountPrice = data.discountPrice != null ? Number(data.discountPrice) : null;
+      updateData.discountPrice =
+        data.discountPrice != null ? Number(data.discountPrice) : null;
     }
     if (data.stock !== undefined) {
       updateData.stock = Math.max(0, parseInt(data.stock, 10));
     }
-    if (data.brand          !== undefined) updateData.brand          = data.brand;
-    if (data.sku            !== undefined) updateData.sku            = data.sku;
-    if (data.specifications !== undefined) updateData.specifications = data.specifications;
-    if (data.tags           !== undefined) updateData.tags           = data.tags;
-    if (data.isActive       !== undefined) updateData.isActive       = data.isActive;
-    if (data.isFeatured     !== undefined) updateData.isFeatured     = data.isFeatured;
-    if (data.averageRating  !== undefined) updateData.averageRating  = data.averageRating;
-    if (data.totalReviews   !== undefined) updateData.totalReviews   = data.totalReviews;
+    if (data.brand !== undefined) updateData.brand = data.brand;
+    if (data.sku !== undefined) updateData.sku = data.sku;
+    if (data.specifications !== undefined)
+      updateData.specifications = data.specifications;
+    if (data.tags !== undefined) updateData.tags = data.tags;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.isFeatured !== undefined) updateData.isFeatured = data.isFeatured;
+    if (data.averageRating !== undefined)
+      updateData.averageRating = data.averageRating;
+    if (data.totalReviews !== undefined)
+      updateData.totalReviews = data.totalReviews;
 
     // Category FK — accept both forms
-    if (data.category   !== undefined) updateData.categoryId = data.category;
+    if (data.category !== undefined) updateData.categoryId = data.category;
     if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
 
     const product = await prisma.product.update({
-      where:   { id },
-      data:    updateData,
+      where: { id },
+      data: updateData,
       include: this.#detailInclude,
     });
 
@@ -321,8 +350,8 @@ class ProductRepository {
    */
   async softDelete(id) {
     const product = await prisma.product.update({
-      where:   { id },
-      data:    { isActive: false },
+      where: { id },
+      data: { isActive: false },
       include: this.#detailInclude,
     });
     return this.#normalise(product);
@@ -334,7 +363,7 @@ class ProductRepository {
   async updateRatingStats(id, { averageRating, totalReviews }) {
     await prisma.product.update({
       where: { id },
-      data:  { averageRating, totalReviews },
+      data: { averageRating, totalReviews },
     });
   }
 
@@ -353,7 +382,10 @@ class ProductRepository {
   async adjustStock(id, delta, tx = prisma) {
     return tx.product.update({
       where: { id },
-      data:  { stock: delta >= 0 ? { increment: delta } : { decrement: Math.abs(delta) } },
+      data: {
+        stock:
+          delta >= 0 ? { increment: delta } : { decrement: Math.abs(delta) },
+      },
       select: { id: true, stock: true, title: true },
     });
   }
@@ -362,10 +394,14 @@ class ProductRepository {
 
   async findFeatured(limit = 8) {
     const products = await prisma.product.findMany({
-      where:   { isActive: true, isFeatured: true, stock: { gt: 0 } },
+      where: { isActive: true, isFeatured: true, stock: { gt: 0 } },
       include: this.#listInclude,
-      orderBy: [{ averageRating: "desc" }, { totalSales: "desc" }, { createdAt: "desc" }],
-      take:    Math.min(limit, 50),
+      orderBy: [
+        { averageRating: "desc" },
+        { totalSales: "desc" },
+        { createdAt: "desc" },
+      ],
+      take: Math.min(limit, 50),
     });
     return products.map((p) => this.#normalise(p));
   }
