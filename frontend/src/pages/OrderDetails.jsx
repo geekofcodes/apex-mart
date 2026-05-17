@@ -19,7 +19,6 @@ import {
   Loader2,
 } from "lucide-react";
 
-// Reuse status color helper - ideally move to utils but fine here for now
 const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
     case "pending":
@@ -78,7 +77,6 @@ const OrderDetails = () => {
     );
   }
 
-  // Defensive check even after loading since api might return null data on 404
   if (!order.id) return null;
 
   return (
@@ -125,13 +123,16 @@ const OrderDetails = () => {
             <div className="space-y-6">
               {order.items.map((item) => (
                 <div
-                  key={item.id || item.productId}
+                  key={item.product?.id || Math.random()}
                   className="flex gap-4 sm:gap-6"
                 >
                   <div className="w-20 h-20 bg-(--color-background-alt) rounded-lg border border-(--color-border) overflow-hidden shrink-0">
                     <img
-                      src={item.image || "https://placehold.co/80x80"}
-                      alt={item.name}
+                      src={
+                        item.product?.images?.[0] ||
+                        "https://via.placeholder.com/150"
+                      }
+                      alt={item.product?.title}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -139,14 +140,14 @@ const OrderDetails = () => {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium text-(--color-text-primary) line-clamp-2">
-                          {item.name || "Product"}
+                          {item.product?.title || "Product Unavailable"}
                         </h3>
                         <p className="text-sm text-(--color-text-muted) mt-1">
                           Quantity: {item.quantity}
                         </p>
                       </div>
                       <p className="font-medium text-(--color-text-primary)">
-                        {formatCurrency(item.price || 0)}
+                        {formatCurrency(item.product?.price || 0)}
                       </p>
                     </div>
                   </div>
@@ -159,35 +160,16 @@ const OrderDetails = () => {
         {/* Sidebar Info */}
         <div className="w-full lg:w-96 space-y-6">
           {/* Shipping Address */}
-          {/* Note: The backend OrderDTO currently doesn't explicitly expose shippingAddress in the main DTO in API CONTRACT 
-                         But assuming it should be there. If missing, we gracefull handle. */}
           <div className="card p-6">
             <h3 className="font-bold text-(--color-text-primary) mb-4 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-(--color-text-muted)" />
               Shipping Details
             </h3>
-            {/* We will need to check if shipping address is returned. If not, maybe use user info as placeholder or check if backend returns it */}
-            {/* For now, assuming user address or generic fallback if not strictly in DTO yet */}
             <div className="text-sm text-(--color-text-muted) space-y-1">
-              {order.shippingAddress ? (
-                <>
-                  <p className="font-medium text-(--color-text-primary)">
-                    {order.shippingAddress.fullName}
-                  </p>
-                  <p>{order.shippingAddress.addressLine1}</p>
-                  {order.shippingAddress.addressLine2 && (
-                    <p>{order.shippingAddress.addressLine2}</p>
-                  )}
-                  <p>
-                    {[order.shippingAddress.city, order.shippingAddress.state, order.shippingAddress.postalCode]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </p>
-                  <p>{order.shippingAddress.country}</p>
-                </>
-              ) : (
-                <p>Address not available</p>
-              )}
+              <p className="font-medium text-(--color-text-primary)">
+                Delivery Address
+              </p>
+              <p>123 Main St (Placeholder)</p> <p>New York, NY, 10001</p>
             </div>
           </div>
 
@@ -200,19 +182,15 @@ const OrderDetails = () => {
             <div className="flex items-center justify-between text-sm mb-2">
               <span className="text-(--color-text-muted)">Payment Status</span>
               <span
-                className={`font-medium ${
-                  order.paymentStatus === "completed" || order.paymentStatus === "paid"
-                    ? "text-(--color-success)"
-                    : "text-(--color-warning)"
-                }`}
+                className={`font-medium ${order.paymentStatus === "paid" ? "text-(--color-success)" : "text-(--color-warning)"}`}
               >
                 {order.paymentStatus || "Pending"}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-(--color-text-muted)">Method</span>
-              <span className="text-(--color-text-primary) capitalize">
-                {order.paymentMethod || "COD"}
+              <span className="text-(--color-text-primary)">
+                Cash on Delivery
               </span>
             </div>
           </div>

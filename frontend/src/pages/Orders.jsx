@@ -131,14 +131,17 @@ const Orders = () => {
             <div className="bg-(--color-background-alt)/30 border-t border-(--color-border) px-6 py-3 flex items-center gap-3 overflow-x-auto no-scrollbar">
               {order.items.slice(0, 5).map((item) => (
                 <div
-                  key={item.id || item.productId}
+                  key={item.product?.id || Math.random()}
                   className="w-8 h-8 rounded-md border border-(--color-border) bg-white p-0.5"
-                  title={item.name}
+                  title={item.product?.title}
                 >
                   <img
-                    src={item.image || "https://placehold.co/50"}
+                    src={
+                      item.product?.images?.[0] ||
+                      "https://via.placeholder.com/50"
+                    }
                     className="w-full h-full object-cover rounded-sm"
-                    alt={item.name || ""}
+                    alt=""
                   />
                 </div>
               ))}
