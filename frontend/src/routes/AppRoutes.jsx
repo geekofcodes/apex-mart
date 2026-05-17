@@ -26,6 +26,7 @@ import About from "../pages/About";
 import AddCategory from "../pages/AddCategory";
 import AddProduct from "../pages/AddProduct";
 import Categories from "../pages/Categories";
+import OrderSuccess from "../pages/OrderSuccess";
 
 const AppRoutes = () => {
   return (
@@ -44,6 +45,7 @@ const AppRoutes = () => {
         <Route element={<ProtectedRoute />}>
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/orders/success/:id" element={<OrderSuccess />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/:id" element={<OrderDetails />} />
           <Route path="/profile" element={<Profile />} />

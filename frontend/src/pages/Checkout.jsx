@@ -43,9 +43,7 @@ const Checkout = () => {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(checkoutSchema),
-    defaultValues: {
-      // Could pre-fill from user profile
-    },
+    defaultValues: {},
   });
 
   const onSubmit = async (data) => {
@@ -66,7 +64,7 @@ const Checkout = () => {
       const res = await orderAPI.createOrder(orderPayload);
       dispatch(resetCart());
       toast.success("Order placed successfully! 🎉");
-      navigate(`/orders/${res.data.id}`);
+      navigate(`/orders/success/${res.data.id}`);
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Failed to place order");
