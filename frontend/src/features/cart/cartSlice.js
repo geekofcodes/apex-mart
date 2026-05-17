@@ -74,6 +74,7 @@ const initialState = {
   totalAmount: 0,
   isLoading: false,
   error: null,
+  updatingItemId: null,
 };
 
 const cartSlice = createSlice({
@@ -120,8 +121,34 @@ const cartSlice = createSlice({
 
       // Update Cart Item
       .addCase(updateCartItem.fulfilled, (state, action) => {
-        state.items = action.payload.items;
+        const updatedItems = action.payload.items;
+
+        updatedItems.forEach((updatedItem) => {
+          const existing = state.items.find(
+            (i) => i.product.id === updatedItem.product.id,
+          );
+
+          if (state.updatingItemId !== updatedItem.product.id && existing) {
+            existing.quantity = updatedItem.quantity;
+          }
+        });
+
         state.totalAmount = action.payload.totalAmount;
+        state.updatingItemId = null;
+      })
+      .addCase(updateCartItem.pending, (state, action) => {
+        const { productId, quantity } = action.meta.arg;
+
+        state.updatingItemId = productId;
+
+        const item = state.items.find((i) => i.product.id === productId);
+        if (item) {
+          item.quantity = quantity;
+        }
+      })
+      .addCase(updateCartItem.rejected, (state, action) => {
+        state.error = action.payload;
+        state.updatingItemId = null;
       })
 
       // Remove from Cart

@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { useAppSelector } from "@/app/hooks";
+import { useDebounce } from "../hooks/useDebounce";
 import {
   fetchCart,
   updateCartItem,
@@ -11,15 +12,7 @@ import {
   selectCartLoading,
 } from "@/features/cart/cartSlice";
 import { formatCurrency } from "@/utils/helpers";
-import {
-  Trash2,
-  Plus,
-  Minus,
-  ShoppingCart,
-  ArrowRight,
-  ArrowLeft,
-  Loader2,
-} from "lucide-react";
+import { Trash2, Plus, Minus, ShoppingCart, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 
@@ -29,15 +22,54 @@ const Cart = () => {
   const cartItems = useAppSelector(selectCartItems);
   const cartTotal = useAppSelector(selectCartTotal);
   const isLoading = useAppSelector(selectCartLoading);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [localQuantities, setLocalQuantities] = useState({});
+  const debouncedQuantities = useDebounce(localQuantities, 500);
 
   useEffect(() => {
     dispatch(fetchCart());
   }, [dispatch]);
 
-  const handleUpdateQuantity = (productId, currentQuantity, change) => {
-    const newQuantity = currentQuantity + change;
-    if (newQuantity < 1) return;
-    dispatch(updateCartItem({ productId, quantity: newQuantity }));
+  useEffect(() => {
+    setLocalQuantities((prev) => {
+      const updated = { ...prev };
+
+      cartItems.forEach((item) => {
+        if (!(item.product.id in updated)) {
+          updated[item.product.id] = item.quantity;
+        }
+      });
+
+      return updated;
+    });
+  }, [cartItems]);
+
+  useEffect(() => {
+    Object.entries(debouncedQuantities).forEach(([productId, quantity]) => {
+      const item = cartItems.find((i) => i.product.id === productId);
+
+      if (!item) return;
+
+      if (item.quantity !== quantity) {
+        dispatch(updateCartItem({ productId, quantity }));
+      }
+    });
+  }, [debouncedQuantities, cartItems, dispatch]);
+
+  const handleUpdateQuantity = (productId, change) => {
+    if (isUpdating) return;
+
+    setLocalQuantities((prev) => {
+      const current = prev[productId] ?? 1;
+      const newQty = current + change;
+
+      if (newQty < 1) return prev;
+
+      return {
+        ...prev,
+        [productId]: newQty,
+      };
+    });
   };
 
   const handleRemoveItem = (productId) => {
@@ -85,99 +117,92 @@ const Cart = () => {
         {/* Cart Items List */}
         <div className="flex-1 space-y-4">
           <AnimatePresence>
-            {cartItems.map((item) => (
-              <motion.div
-                key={item.product.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                className="card flex gap-4 md:gap-6 items-start md:items-center p-4 md:p-6"
-              >
-                {/* Product Image */}
-                <div className="w-20 h-20 md:w-24 md:h-24 shrink-0 bg-(--color-background-alt) rounded-lg overflow-hidden border border-(--color-border)">
-                  <img
-                    src={
-                      item.product.images?.[0] ||
-                      "https://via.placeholder.com/100"
-                    }
-                    alt={item.product.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+            {cartItems.map((item) => {
+              const quantity =
+                localQuantities[item.product.id] ?? item.quantity;
 
-                {/* Info & Controls */}
-                <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex-1">
-                    <Link
-                      to={`/products/${item.product.id}`}
-                      className="text-lg font-medium text-(--color-text-primary) hover:text-(--color-primary) transition-colors line-clamp-1"
-                    >
-                      {item.product.title}
-                    </Link>
-                    <p className="text-sm text-(--color-text-muted)">
-                      Unit Price:{" "}
-                      {formatCurrency(
-                        item.product.discountPrice || item.product.price,
-                      )}
-                    </p>
+              const price = item.product.discountPrice || item.product.price;
+
+              return (
+                <motion.div
+                  key={item.product.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  className="card flex gap-4 md:gap-6 items-start md:items-center p-4 md:p-6"
+                >
+                  {/* Product Image */}
+                  <div className="w-20 h-20 md:w-24 md:h-24 shrink-0 bg-(--color-background-alt) rounded-lg overflow-hidden border border-(--color-border)">
+                    <img
+                      src={
+                        item.product.images?.[0] ||
+                        "https://via.placeholder.com/100"
+                      }
+                      alt={item.product.title}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
 
-                  {/* Quantity & Actions */}
-                  <div className="flex items-center justify-between md:justify-end gap-6 md:gap-8 w-full md:w-auto">
-                    {/* Quantity Controls */}
-                    <div className="flex items-center border border-(--color-border) rounded-lg">
-                      <button
-                        onClick={() =>
-                          handleUpdateQuantity(
-                            item.product.id,
-                            item.quantity,
-                            -1,
-                          )
-                        }
-                        disabled={item.quantity <= 1}
-                        className="p-2 text-(--color-text-muted) hover:text-(--color-text-primary) hover:bg-(--color-background-alt) disabled:opacity-50 transition-colors"
+                  {/* Info & Controls */}
+                  <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <Link
+                        to={`/products/${item.product.id}`}
+                        className="text-lg font-medium text-(--color-text-primary) hover:text-(--color-primary) transition-colors line-clamp-1"
                       >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="w-10 text-center font-medium text-(--color-text-primary)">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() =>
-                          handleUpdateQuantity(
-                            item.product.id,
-                            item.quantity,
-                            1,
-                          )
-                        }
-                        disabled={item.quantity >= (item.product.stock || 99)}
-                        className="p-2 text-(--color-text-muted) hover:text-(--color-text-primary) hover:bg-(--color-background-alt) disabled:opacity-50 transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
+                        {item.product.title}
+                      </Link>
+                      <p className="text-sm text-(--color-text-muted)">
+                        Unit Price: {formatCurrency(price)}
+                      </p>
                     </div>
 
-                    {/* Total & Remove */}
-                    <div className="flex items-center gap-6">
-                      <span className="font-bold text-lg text-(--color-text-primary) min-w-[80px] text-right">
-                        {formatCurrency(
-                          (item.product.discountPrice || item.product.price) *
-                            item.quantity,
-                        )}
-                      </span>
-                      <button
-                        onClick={() => handleRemoveItem(item.product.id)}
-                        className="text-(--color-text-muted) hover:text-(--color-error) p-2 rounded-full hover:bg-(--color-error-light)/10 transition-colors"
-                        title="Remove item"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                    {/* Quantity & Actions */}
+                    <div className="flex items-center justify-between md:justify-end gap-6 md:gap-8 w-full md:w-auto">
+                      {/* Quantity Controls */}
+                      <div className="flex items-center border border-(--color-border) rounded-lg">
+                        <button
+                          onClick={() =>
+                            handleUpdateQuantity(item.product.id, -1)
+                          }
+                          disabled={quantity <= 1}
+                          className="p-2 text-(--color-text-muted) hover:text-(--color-text-primary) hover:bg-(--color-background-alt) disabled:opacity-50 transition-colors"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <span className="w-10 text-center font-medium text-(--color-text-primary)">
+                          {quantity}
+                        </span>
+                        <button
+                          onClick={() =>
+                            handleUpdateQuantity(item.product.id, 1)
+                          }
+                          disabled={quantity >= (item.product.stock || 99)}
+                          className="p-2 text-(--color-text-muted) hover:text-(--color-text-primary) hover:bg-(--color-background-alt) disabled:opacity-50 transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Total & Remove */}
+                      <div className="flex items-center gap-6">
+                        <span className="font-bold text-lg text-(--color-text-primary) min-w-[80px] text-right">
+                          {formatCurrency(price * quantity)}
+                        </span>
+                        <button
+                          onClick={() => handleRemoveItem(item.product.id)}
+                          className="text-(--color-text-muted) hover:text-(--color-error) p-2 rounded-full hover:bg-(--color-error-light)/10 transition-colors"
+                          title="Remove item"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
 
