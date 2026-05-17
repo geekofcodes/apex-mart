@@ -40,10 +40,8 @@ const AppRoutes = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/about" element={<About />} />
 
-        {/* Customer Protected Routes (also need PublicLayout) */}
-        <Route
-          element={<ProtectedRoute allowedRoles={[USER_ROLES.CUSTOMER]} />}
-        >
+        {/* Protected Routes for All users*/}
+        <Route element={<ProtectedRoute />}>
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/orders" element={<Orders />} />
