@@ -1,1 +1,4 @@
-.agent/
+.env
+.env.*
+frontend/.env
+backend/.env
