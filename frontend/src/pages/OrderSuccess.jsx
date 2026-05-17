@@ -110,11 +110,11 @@ const OrderSuccess = () => {
 
           {order.items.map((item) => (
             <div
-              key={item.product?.id || item.id}
+              key={item.id || item.productId}
               className="flex justify-between mb-2 text-sm"
             >
               <span>
-                {item.name || item.product?.title || "Product"} × {item.quantity}
+                {item.name || "Product"} × {item.quantity}
               </span>
               <span>{formatCurrency(item.price * item.quantity)}</span>
             </div>
