@@ -1,82 +1,63 @@
-import orderService from "./order.service.js";
-import { AppError } from "../middlewares/error.middleware.js";
-import { HTTP_STATUS, PAYMENT_STATUS } from "../utils/constants.js";
+import crypto from "crypto";
+import razorpay from "../config/razorpay.js";
 
 /**
- * Payment Service - Service for handling payment processing
- * Placeholder for future integration (Stripe, Razorpay, etc.)
+ * Payment Service — Razorpay operations.
+ *
+ * All money values accepted in ₹ (rupees) and converted to paise (×100)
+ * before sending to Razorpay, as the API expects the smallest currency unit.
  */
-class PaymentService {
-  /**
-   * Process a payment
-   */
-  async processPayment(orderId, paymentData) {
-    // 3. Order Link: Ensure order exists before payment
-    // Using ADMIN role to bypass user ownership check for internal processing
-    const order = await orderService.getOrderById(orderId, null, "ADMIN");
 
-    // 2. Idempotency: Prevent duplicate payment processing
-    if (order.paymentStatus === PAYMENT_STATUS.COMPLETED) {
-      throw new AppError("Order has already been paid", HTTP_STATUS.BAD_REQUEST);
-    }
+/**
+ * Create a Razorpay order.
+ *
+ * @param {object} options
+ * @param {number} options.amount    - Amount in ₹ (will be converted to paise)
+ * @param {string} [options.currency] - ISO 4217 currency code, default "INR"
+ * @param {string} options.receipt   - Unique receipt identifier (max 40 chars)
+ * @returns {Promise<object>}        - Razorpay order object
+ */
+export const createRazorpayOrder = async ({
+  amount,
+  currency = "INR",
+  receipt,
+}) => {
+  const options = {
+    amount: Math.round(amount * 100), // ₹ → paise (Razorpay requires smallest unit)
+    currency,
+    receipt,
+  };
 
-    if (order.paymentStatus !== PAYMENT_STATUS.PENDING) {
-       throw new AppError(`Cannot process payment for order in ${order.paymentStatus} state`, HTTP_STATUS.BAD_REQUEST);
-    }
+  const order = await razorpay.orders.create(options);
+  return order;
+};
 
-    // Placeholder gateway logic
-    const isSuccess = true;
+/**
+ * Verify a Razorpay payment signature.
+ *
+ * Razorpay signs the payment using HMAC-SHA256 over:
+ *   "<razorpay_order_id>|<razorpay_payment_id>"
+ *
+ * We recompute the expected signature server-side and compare it to what
+ * Razorpay sent. This proves the payment was not tampered with.
+ *
+ * @param {object} params
+ * @param {string} params.razorpay_order_id   - Razorpay order ID
+ * @param {string} params.razorpay_payment_id - Razorpay payment ID
+ * @param {string} params.razorpay_signature  - Signature from Razorpay callback
+ * @returns {boolean} - true if signature is valid
+ */
+export const verifyRazorpayPayment = ({
+  razorpay_order_id,
+  razorpay_payment_id,
+  razorpay_signature,
+}) => {
+  const body = `${razorpay_order_id}|${razorpay_payment_id}`;
 
-    if (isSuccess) {
-      const transactionId = `TXN_${Date.now()}`;
-      await orderService.updatePaymentStatus(orderId, PAYMENT_STATUS.COMPLETED, {
-        transactionId,
-        paymentMethod: paymentData?.paymentMethod || "STRIPE", // Example
-        gatewayEventId: paymentData?.gatewayEventId,
-      });
-      return {
-        success: true,
-        transactionId,
-        status: PAYMENT_STATUS.COMPLETED,
-      };
-    } else {
-      await orderService.updatePaymentStatus(orderId, PAYMENT_STATUS.FAILED, {
-         gatewayEventId: paymentData?.gatewayEventId,
-      });
-      return {
-        success: false,
-        status: PAYMENT_STATUS.FAILED,
-      };
-    }
-  }
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+    .update(body)
+    .digest("hex");
 
-  /**
-   * Refund a payment
-   */
-  async refundPayment(orderId, transactionId) {
-    const order = await orderService.getOrderById(orderId, null, "ADMIN");
-
-    // 2. Idempotency & 4. Status Transition Safety
-    if (order.paymentStatus === PAYMENT_STATUS.REFUNDED) {
-      return { success: true, message: "Payment already refunded" };
-    }
-
-    if (order.paymentStatus !== PAYMENT_STATUS.COMPLETED) {
-      throw new AppError("Cannot refund an unpaid order", HTTP_STATUS.BAD_REQUEST);
-    }
-
-    // Placeholder refund logic
-    const refundId = `REF_${Date.now()}`;
-    await orderService.updatePaymentStatus(orderId, PAYMENT_STATUS.REFUNDED, {
-      transactionId: refundId
-    });
-
-    return {
-      success: true,
-      refundId,
-      status: PAYMENT_STATUS.REFUNDED,
-    };
-  }
-}
-
-export default new PaymentService();
+  return expectedSignature === razorpay_signature;
+};

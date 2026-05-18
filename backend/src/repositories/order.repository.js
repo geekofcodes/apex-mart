@@ -234,8 +234,12 @@ class OrderRepository {
    * @param {Array}  orderItems  - [{ product: string, name, quantity, image }]
    *                               NOTE: `price` field is intentionally ignored.
    *                               All pricing is sourced from the DB.
+   * @param {object} [options]
+   * @param {string} [options.initialPaymentStatus] - Override initial payment status (default: PENDING)
+   * @param {string} [options.initialOrderStatus]   - Override initial order status   (default: PENDING)
+   * @param {Date}   [options.paidAt]               - Set paidAt timestamp if already paid
    */
-  async create(userId, cartId, shippingAddress, paymentMethod, orderItems) {
+  async create(userId, cartId, shippingAddress, paymentMethod, orderItems, options = {}) {
     // ── Pre-flight: validate payment method ────────────────────────────────
     const prismaPaymentMethod = paymentMethod?.toUpperCase() ?? "COD";
     const validPaymentMethod = VALID_PAYMENT_METHODS.has(prismaPaymentMethod)
@@ -371,6 +375,10 @@ class OrderRepository {
         // Order number uniqueness retry: on a P2002 unique constraint violation,
         // regenerate once and retry. Two retries is more than sufficient given
         // the 1-in-1,000,000 collision probability of generateOrderNumber().
+        const initialPaymentStatus = options.initialPaymentStatus ?? "PENDING";
+        const initialOrderStatus   = options.initialOrderStatus   ?? "PENDING";
+        const initialPaidAt        = options.paidAt               ?? null;
+
         let created;
         try {
           created = await tx.order.create({
@@ -383,8 +391,9 @@ class OrderRepository {
               shippingPrice,
               taxPrice,
               totalPrice,
-              paymentStatus: "PENDING",
-              orderStatus: "PENDING",
+              paymentStatus: initialPaymentStatus,
+              orderStatus:   initialOrderStatus,
+              paidAt:        initialPaidAt,
               orderItems: { create: verifiedItems },
             },
             include: this.#include,
@@ -405,8 +414,9 @@ class OrderRepository {
                 shippingPrice,
                 taxPrice,
                 totalPrice,
-                paymentStatus: "PENDING",
-                orderStatus: "PENDING",
+                paymentStatus: initialPaymentStatus,
+                orderStatus:   initialOrderStatus,
+                paidAt:        initialPaidAt,
                 orderItems: { create: verifiedItems },
               },
               include: this.#include,

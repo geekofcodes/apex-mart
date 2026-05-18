@@ -142,16 +142,27 @@ class OrderService {
       );
     }
 
-    // Delegate atomic operation (address snapshot + order + stock + cart clear)
-    // Stock validation and authoritative pricing against actual DB values happens inside the transaction.
+    // Delegate atomic operation (address snapshot + order + stock + cart clear).
+    // Stock validation and authoritative pricing happens inside the transaction.
+    //
+    // For Razorpay orders the frontend has already passed the /payments/verify
+    // signature gate before calling this endpoint, so we can set the final
+    // payment state directly inside the creation transaction — no second update.
+    const isRazorpay = paymentMethod?.toUpperCase() === "RAZORPAY";
+
     let order;
     try {
       order = await orderRepository.create(
         userId,
-        cart.id || cart.id,
+        cart.id,
         shippingAddress,
         paymentMethod,
         orderItems,
+        {
+          initialPaymentStatus: isRazorpay ? "PAID"      : "PENDING",
+          initialOrderStatus:   isRazorpay ? "CONFIRMED" : "PENDING",
+          paidAt:               isRazorpay ? new Date()  : null,
+        },
       );
     } catch (err) {
       // Surface repository-thrown business errors as 400 Bad Request.

@@ -41,9 +41,9 @@ export const PAYMENT_STATUS = {
  * Payment Methods
  */
 export const PAYMENT_METHODS = {
-  CARD: "card",
-  PAYPAL: "paypal",
   COD: "COD",
+  PAYPAL: "paypal",
+  RAZORPAY: "razorpay",
   STRIPE: "stripe",
 };
 

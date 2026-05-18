@@ -8,6 +8,7 @@ import { selectCartItems, selectCartTotal } from "@/features/cart/cartSlice";
 import { useDispatch } from "react-redux";
 import { resetCart } from "@/features/cart/cartSlice";
 import { orderAPI } from "@/api/order.api";
+import { paymentAPI } from "@/api/payment.api";
 import { formatCurrency } from "@/utils/helpers";
 import {
   ArrowLeft,
@@ -35,6 +36,7 @@ const Checkout = () => {
   const cartItems = useAppSelector(selectCartItems);
   const cartTotal = useAppSelector(selectCartTotal);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("cod");
   const dispatch = useDispatch();
 
   const {
@@ -48,6 +50,7 @@ const Checkout = () => {
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
+
     try {
       const orderPayload = {
         shippingAddress: {
@@ -58,16 +61,47 @@ const Checkout = () => {
           state: data.state,
           postalCode: data.zipCode,
         },
-        paymentMethod: "COD",
+        paymentMethod: paymentMethod === "cod" ? "COD" : "razorpay",
       };
 
-      const res = await orderAPI.createOrder(orderPayload);
-      dispatch(resetCart());
-      toast.success("Order placed successfully! 🎉");
-      navigate(`/orders/success/${res.data.id}`);
+      if (paymentMethod === "cod") {
+        const res = await orderAPI.createOrder(orderPayload);
+        dispatch(resetCart());
+        toast.success("Order placed successfully! 🎉");
+        navigate(`/orders/success/${res.id}`);
+        return;
+      }
+
+      if (paymentMethod === "razorpay") {
+        const rpOrder = await paymentAPI.createRazorpayOrder(cartTotal);
+
+        paymentAPI.openRazorpay({
+          order: rpOrder,
+          user: data,
+
+          onSuccess: async () => {
+            try {
+              const res = await orderAPI.createOrder(orderPayload);
+              dispatch(resetCart());
+              toast.success("Payment successful! 🎉");
+              navigate(`/orders/success/${res.id}`);
+            } catch (err) {
+              console.error("Order creation failed after payment:", err);
+              toast.error(
+                err.response?.data?.message ||
+                  "Order creation failed. Please contact support.",
+              );
+            }
+          },
+
+          onFailure: (msg) => {
+            toast.error(msg || "Payment verification failed.");
+          },
+        });
+      }
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || "Failed to place order");
+      toast.error(error.response?.data?.message || "Payment failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -239,21 +273,41 @@ const Checkout = () => {
                 </div>
               </section>
 
-              {/* Payment Method (Visual only for now) */}
+              {/* Payment Method */}
               <section>
                 <h2 className="text-xl font-bold text-(--color-text-primary) mb-4">
                   Payment Method
                 </h2>
-                <div className="p-4 border border-(--color-primary) bg-(--color-primary-light)/10 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <CreditCard className="w-5 h-5 text-(--color-primary)" />
-                    <span className="font-medium">Cash on Delivery</span>
-                  </div>
-                  <div className="w-4 h-4 rounded-full border-4 border-(--color-primary)" />
+
+                <div className="space-y-3">
+                  {/* COD */}
+                  <label className="flex items-center justify-between p-4 border rounded-xl cursor-pointer">
+                    <div className="flex items-center space-x-3">
+                      <CreditCard className="w-5 h-5 text-(--color-primary)" />
+                      <span className="font-medium">Cash on Delivery</span>
+                    </div>
+                    <input
+                      type="radio"
+                      value="cod"
+                      checked={paymentMethod === "cod"}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                    />
+                  </label>
+
+                  {/* Razorpay */}
+                  <label className="flex items-center justify-between p-4 border rounded-xl cursor-pointer">
+                    <div className="flex items-center space-x-3">
+                      <CreditCard className="w-5 h-5 text-(--color-primary)" />
+                      <span className="font-medium">Pay Online (Razorpay)</span>
+                    </div>
+                    <input
+                      type="radio"
+                      value="razorpay"
+                      checked={paymentMethod === "razorpay"}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                    />
+                  </label>
                 </div>
-                <p className="text-xs text-(--color-text-muted) mt-2">
-                  * More payment options will be available soon.
-                </p>
               </section>
             </motion.div>
           </div>
