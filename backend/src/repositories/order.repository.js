@@ -239,7 +239,16 @@ class OrderRepository {
    * @param {string} [options.initialOrderStatus]   - Override initial order status   (default: PENDING)
    * @param {Date}   [options.paidAt]               - Set paidAt timestamp if already paid
    */
-  async create(userId, cartId, shippingAddress, paymentMethod, orderItems, options = {}) {
+  async create(
+    userId,
+    cartId,
+    shippingAddress,
+    paymentMethod,
+    orderItems,
+    options = {},
+  ) {
+    console.log("REPO RECEIVED:", options.razorpayOrderId);
+
     // ── Pre-flight: validate payment method ────────────────────────────────
     const prismaPaymentMethod = paymentMethod?.toUpperCase() ?? "COD";
     const validPaymentMethod = VALID_PAYMENT_METHODS.has(prismaPaymentMethod)
@@ -376,9 +385,10 @@ class OrderRepository {
         // regenerate once and retry. Two retries is more than sufficient given
         // the 1-in-1,000,000 collision probability of generateOrderNumber().
         const initialPaymentStatus = options.initialPaymentStatus ?? "PENDING";
-        const initialOrderStatus   = options.initialOrderStatus   ?? "PENDING";
-        const initialPaidAt        = options.paidAt               ?? null;
-
+        const initialOrderStatus = options.initialOrderStatus ?? "PENDING";
+        const initialPaidAt = options.paidAt ?? null;
+        const razorpayOrderId = options.razorpayOrderId ?? null;
+        console.log("REPO RECEIVED:", razorpayOrderId);
         let created;
         try {
           created = await tx.order.create({
@@ -392,8 +402,9 @@ class OrderRepository {
               taxPrice,
               totalPrice,
               paymentStatus: initialPaymentStatus,
-              orderStatus:   initialOrderStatus,
-              paidAt:        initialPaidAt,
+              orderStatus: initialOrderStatus,
+              paidAt: initialPaidAt,
+              razorpayOrderId,
               orderItems: { create: verifiedItems },
             },
             include: this.#include,
@@ -415,8 +426,9 @@ class OrderRepository {
                 taxPrice,
                 totalPrice,
                 paymentStatus: initialPaymentStatus,
-                orderStatus:   initialOrderStatus,
-                paidAt:        initialPaidAt,
+                orderStatus: initialOrderStatus,
+                paidAt: initialPaidAt,
+                razorpayOrderId,
                 orderItems: { create: verifiedItems },
               },
               include: this.#include,
@@ -658,6 +670,20 @@ class OrderRepository {
       select: { id: true },
     });
     return item !== null;
+  }
+  /**
+   * Idempotent update for Razorpay webhooks.
+   * Only updates the order if it is currently in PENDING payment status.
+   */
+  async updateByRazorpayOrderId(razorpayOrderId, data) {
+    if (!razorpayOrderId) return null;
+    return await prisma.order.updateMany({
+      where: {
+        razorpayOrderId,
+        paymentStatus: "PENDING",
+      },
+      data,
+    });
   }
 }
 

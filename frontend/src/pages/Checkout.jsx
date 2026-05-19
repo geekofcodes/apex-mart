@@ -81,7 +81,17 @@ const Checkout = () => {
 
           onSuccess: async () => {
             try {
-              const res = await orderAPI.createOrder(orderPayload);
+              const razorpayOrderId = rpOrder.orderId; // 🔥 ALWAYS RELIABLE
+              console.log("CHECKOUT RECEIVED:", razorpayOrderId);
+
+              const finalOrderId = razorpayOrderId;
+              console.log("FINAL ORDER ID USED:", finalOrderId);
+
+              const res = await orderAPI.createOrder({
+                ...orderPayload,
+                razorpayOrderId: finalOrderId,
+                paymentMethod: paymentMethod,
+              });
               dispatch(resetCart());
               toast.success("Payment successful! 🎉");
               navigate(`/orders/success/${res.id}`);

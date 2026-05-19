@@ -149,7 +149,7 @@ class OrderService {
     // signature gate before calling this endpoint, so we can set the final
     // payment state directly inside the creation transaction — no second update.
     const isRazorpay = paymentMethod?.toUpperCase() === "RAZORPAY";
-
+    console.log("SERVICE RECEIVED:", orderData.razorpayOrderId);
     let order;
     try {
       order = await orderRepository.create(
@@ -159,9 +159,10 @@ class OrderService {
         paymentMethod,
         orderItems,
         {
-          initialPaymentStatus: isRazorpay ? "PAID"      : "PENDING",
-          initialOrderStatus:   isRazorpay ? "CONFIRMED" : "PENDING",
-          paidAt:               isRazorpay ? new Date()  : null,
+          initialPaymentStatus: isRazorpay ? "PAID" : "PENDING",
+          initialOrderStatus: isRazorpay ? "CONFIRMED" : "PENDING",
+          paidAt: isRazorpay ? new Date() : null,
+          razorpayOrderId: orderData.razorpayOrderId ?? null,
         },
       );
     } catch (err) {
@@ -184,6 +185,39 @@ class OrderService {
   }
 
   // ─── Read ─────────────────────────────────────────────────────────────────
+
+  // ─── Webhook Handlers ─────────────────────────────────────────────────────
+
+  /**
+   * Called by the Razorpay `payment.captured` webhook.
+   * Updates the order to PAID/CONFIRMED if it is still PENDING (idempotent).
+   *
+   * The frontend flow (verify → createOrder) already creates the order with
+   * PAID status. This method is a safety net for orders that exist in the DB
+   * but whose status wasn't advanced (e.g. race condition or server crash).
+   */
+  async markOrderAsPaidByRazorpayOrderId(razorpayOrderId) {
+    if (!razorpayOrderId) return;
+    await orderRepository.updateByRazorpayOrderId(razorpayOrderId, {
+      paymentStatus: "PAID",
+      orderStatus: "CONFIRMED",
+      paidAt: new Date(),
+    });
+  }
+
+  /**
+   * Called by the Razorpay `payment.failed` webhook.
+   * Marks the order as FAILED so the user knows and can retry.
+   * Only transitions from PENDING — won't overwrite a captured payment.
+   */
+  async markOrderAsFailed(razorpayOrderId) {
+    if (!razorpayOrderId) return;
+    await orderRepository.updateByRazorpayOrderId(razorpayOrderId, {
+      paymentStatus: "FAILED",
+    });
+  }
+
+  // ─── Read (continued) ─────────────────────────────────────────────────────
 
   async getUserOrders(userId, query = {}) {
     const { page = 1, limit = 10 } = query;

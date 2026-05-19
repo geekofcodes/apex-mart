@@ -49,6 +49,14 @@ app.options("*", cors(corsOptions));
 app.use("/api", generalLimiter);
 app.use("/api/v1/auth", authLimiter);
 
+// ── Webhook: MUST receive raw body for HMAC signature verification ──────────
+// This MUST be registered BEFORE express.json() so Razorpay's raw payload
+// is not parsed. The webhook controller reads req.body as a Buffer.
+app.use(
+  "/api/v1/payments/webhook",
+  express.raw({ type: "application/json" }),
+);
+
 // Body parser middleware
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));

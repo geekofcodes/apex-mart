@@ -72,6 +72,8 @@ export const createOrderSchema = Joi.object({
 
   shippingFee: Joi.number().min(0).optional().default(0),
 
+  razorpayOrderId: Joi.string().optional(),
+
   notes: Joi.string().trim().max(500).optional().messages({
     "string.max": "Notes cannot exceed 500 characters",
   }),

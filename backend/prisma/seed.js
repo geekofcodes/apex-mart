@@ -7,7 +7,8 @@ import bcrypt from "bcryptjs";
 import { faker } from "@faker-js/faker";
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  // connectionString: process.env.DATABASE_URL,
+  connectionString: "postgresql://postgres:1Manny_1940@localhost:5432/apexmart",
 });
 
 const adapter = new PrismaPg(pool);
@@ -23,15 +24,15 @@ const generateSKU = () => "SKU-" + faker.string.alphanumeric(8).toUpperCase();
 async function main() {
   console.log("🌱 Seeding started...");
 
-  const password = await bcrypt.hash("[PASSWORD]", 10);
+  const password = await bcrypt.hash("123456", 10);
 
   // ---------- USERS ----------
   const admin = await prisma.user.upsert({
-    where: { email: "[EMAIL_ADDRESS]" },
+    where: { email: "admin@apexmart.com" },
     update: {},
     create: {
       name: "Admin",
-      email: "[EMAIL_ADDRESS]",
+      email: "admin@apexmart.com",
       password,
       role: "ADMIN",
       isVerified: true,
@@ -42,11 +43,11 @@ async function main() {
 
   for (let i = 1; i <= 3; i++) {
     const seller = await prisma.user.upsert({
-      where: { email: `[EMAIL_ADDRESS]` },
+      where: { email: `seller${i}@apexmart.com` },
       update: {},
       create: {
         name: `Seller ${i}`,
-        email: `[EMAIL_ADDRESS]`,
+        email: `seller${i}@apexmart.com`,
         password,
         role: "SELLER",
         isVerified: true,
@@ -57,13 +58,13 @@ async function main() {
 
   const customers = [];
 
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i <= 6; i++) {
     const customer = await prisma.user.upsert({
-      where: { email: `[EMAIL_ADDRESS]` },
+      where: { email: `customer${i}@apexmart.com` },
       update: {},
       create: {
         name: `Customer ${i}`,
-        email: `[EMAIL_ADDRESS]`,
+        email: `customer${i}@apexmart.com`,
         password,
         role: "CUSTOMER",
         isVerified: true,
@@ -132,7 +133,7 @@ async function main() {
         title: name,
         slug,
         description: faker.commerce.productDescription(),
-        price: parseFloat(faker.commerce.price({ min: 500, max: 100000 })),
+        price: parseFloat(faker.commerce.price({ min: 500, max: 10000 })),
         discountPrice: faker.datatype.boolean()
           ? parseFloat(faker.commerce.price({ min: 100, max: 500 }))
           : null,

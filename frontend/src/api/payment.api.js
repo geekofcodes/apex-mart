@@ -33,19 +33,23 @@ export const paymentAPI = {
    *
    * On success the handler:
    *   1. Verifies the signature via paymentAPI.verifyPayment
-   *   2. Calls onSuccess() if valid — caller creates the order
-   *   3. Calls onFailure() if verification fails
+   *   2. Calls onSuccess(razorpayOrderId) if valid — caller creates the order
+   *      and includes razorpayOrderId so it can be found by webhooks later.
+   *   3. Calls onFailure(msg) if verification fails
    *
    * @param {object}   params
    * @param {object}   params.order     - Razorpay order data from createRazorpayOrder
    * @param {object}   params.user      - { fullName, email } for prefill
-   * @param {Function} params.onSuccess - Called after successful verification
-   * @param {Function} params.onFailure - Called on verification failure or error
+   * @param {Function} params.onSuccess - Called with (razorpayOrderId) after verification
+   * @param {Function} params.onFailure - Called with (msg) on failure
    */
   openRazorpay: ({ order, user, onSuccess, onFailure }) => {
+    // Capture orderId properly in the outer scope
+    const fallbackOrderId = order.orderId;
+
     const options = {
       key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-      amount: order.amount,    // in paise
+      amount: order.amount, // in paise
       currency: order.currency,
       name: "Apex Mart",
       description: "Order Payment",
@@ -54,25 +58,34 @@ export const paymentAPI = {
       handler: async function (response) {
         try {
           const verifyRes = await paymentAPI.verifyPayment({
-            razorpay_order_id:   response.razorpay_order_id,
+            razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature:  response.razorpay_signature,
+            razorpay_signature: response.razorpay_signature,
           });
 
           if (!verifyRes.success) {
-            onFailure?.("Payment verification failed. Please contact support.");
+            onFailure?.("Payment verification failed.");
             return;
           }
 
-          onSuccess?.();
+          console.log("RAZORPAY RESPONSE:", response);
+          console.log("ORDER FROM BACKEND:", order);
+
+          // 🔥 FINAL FIX
+          const razorpayOrderId =
+            response.razorpay_order_id || fallbackOrderId;
+
+          console.log("PASSING ORDER ID:", razorpayOrderId);
+
+          onSuccess?.(razorpayOrderId);
         } catch (err) {
           console.error("Razorpay handler error:", err);
-          onFailure?.("Something went wrong after payment. Please contact support.");
+          onFailure?.("Payment failed.");
         }
       },
 
       prefill: {
-        name:  user.fullName,
+        name: user.fullName,
         email: user.email,
       },
 
