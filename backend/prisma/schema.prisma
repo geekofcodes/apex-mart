@@ -244,7 +244,8 @@ model Order {
   paidAt      DateTime? @map("paid_at")
   deliveredAt DateTime? @map("delivered_at")
 
-  razorpayOrderId String? @map("razorpay_order_id")
+  razorpayOrderId   String? @map("razorpay_order_id")
+  razorpayPaymentId String? @map("razorpay_payment_id")
 
   user            User     @relation(fields: [userId], references: [id])
   shippingAddress Address? @relation(fields: [addressId], references: [id])

@@ -172,7 +172,7 @@ class OrderRepository {
         name: i.productNameSnapshot,
         image: i.imageSnapshot ?? "",
         quantity: i.quantity,
-        price: i.priceSnapshot, // always DB-sourced; never client-supplied
+        price: i.priceSnapshot,
       })),
 
       shippingAddress: addr
@@ -448,7 +448,7 @@ class OrderRepository {
         return created;
       },
       {
-        timeout: 15_000, // allow concurrent checkouts enough time
+        timeout: 15_000,
       },
     );
 
@@ -683,6 +683,18 @@ class OrderRepository {
         paymentStatus: "PENDING",
       },
       data,
+    });
+  }
+
+  /**
+   * Find a single order by Razorpay order ID.
+   * Used for idempotency pre-checks in the webhook handler.
+   */
+  async findByRazorpayOrderId(razorpayOrderId) {
+    if (!razorpayOrderId) return null;
+    return await prisma.order.findFirst({
+      where: { razorpayOrderId },
+      select: { id: true, paymentStatus: true, orderStatus: true },
     });
   }
 }

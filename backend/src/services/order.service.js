@@ -189,19 +189,30 @@ class OrderService {
   // ─── Webhook Handlers ─────────────────────────────────────────────────────
 
   /**
+   * Look up a single order by its Razorpay order ID.
+   * Used by the webhook handler for idempotency pre-checks.
+   */
+  async findByRazorpayOrderId(razorpayOrderId) {
+    if (!razorpayOrderId) return null;
+    return await orderRepository.findByRazorpayOrderId(razorpayOrderId);
+  }
+
+  /**
    * Called by the Razorpay `payment.captured` webhook.
    * Updates the order to PAID/CONFIRMED if it is still PENDING (idempotent).
+   * Also stores the Razorpay payment ID for full traceability.
    *
    * The frontend flow (verify → createOrder) already creates the order with
    * PAID status. This method is a safety net for orders that exist in the DB
    * but whose status wasn't advanced (e.g. race condition or server crash).
    */
-  async markOrderAsPaidByRazorpayOrderId(razorpayOrderId) {
+  async markOrderAsPaidByRazorpayOrderId(razorpayOrderId, razorpayPaymentId) {
     if (!razorpayOrderId) return;
     await orderRepository.updateByRazorpayOrderId(razorpayOrderId, {
       paymentStatus: "PAID",
       orderStatus: "CONFIRMED",
       paidAt: new Date(),
+      ...(razorpayPaymentId && { razorpayPaymentId }),
     });
   }
 

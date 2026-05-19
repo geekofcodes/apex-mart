@@ -129,18 +129,49 @@ export const handleWebhook = async (req, res) => {
     switch (event.event) {
       case "payment.captured": {
         const payment = event.payload.payment.entity;
-        await orderService.markOrderAsPaidByRazorpayOrderId(payment.order_id);
+        const razorpayOrderId = payment.order_id;
+        const razorpayPaymentId = payment.id;
+
+        // Pre-check: find order and guard against double-processing
+        const existingOrder = await orderService.findByRazorpayOrderId(razorpayOrderId);
+
+        if (!existingOrder) {
+          console.log(`[Webhook] ⚠️ No order found for razorpayOrderId=${razorpayOrderId}, skipping`);
+          break;
+        }
+
+        if (existingOrder.paymentStatus === "PAID") {
+          console.log(`[Webhook] ⚠️ Already processed (PAID), skipping for razorpayOrderId=${razorpayOrderId}`);
+          break;
+        }
+
+        await orderService.markOrderAsPaidByRazorpayOrderId(razorpayOrderId, razorpayPaymentId);
         console.log(
-          `[Webhook] payment.captured → order updated for razorpayOrderId=${payment.order_id}`,
+          `[Webhook] ✅ payment.captured → order updated for razorpayOrderId=${razorpayOrderId}`,
         );
         break;
       }
 
       case "payment.failed": {
         const payment = event.payload.payment.entity;
-        await orderService.markOrderAsFailed(payment.order_id);
+        const razorpayOrderId = payment.order_id;
+
+        // Pre-check: find order and guard against double-processing
+        const existingOrder = await orderService.findByRazorpayOrderId(razorpayOrderId);
+
+        if (!existingOrder) {
+          console.log(`[Webhook] ⚠️ No order found for razorpayOrderId=${razorpayOrderId}, skipping`);
+          break;
+        }
+
+        if (existingOrder.paymentStatus === "FAILED") {
+          console.log(`[Webhook] ⚠️ Already marked FAILED, skipping for razorpayOrderId=${razorpayOrderId}`);
+          break;
+        }
+
+        await orderService.markOrderAsFailed(razorpayOrderId);
         console.log(
-          `[Webhook] payment.failed → order marked failed for razorpayOrderId=${payment.order_id}`,
+          `[Webhook] ✅ payment.failed → order marked failed for razorpayOrderId=${razorpayOrderId}`,
         );
         break;
       }
