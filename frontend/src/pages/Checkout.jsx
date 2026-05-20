@@ -82,14 +82,14 @@ const Checkout = () => {
           onSuccess: async () => {
             try {
               const razorpayOrderId = rpOrder.orderId; // 🔥 ALWAYS RELIABLE
-              console.log("CHECKOUT RECEIVED:", razorpayOrderId);
 
-              const finalOrderId = razorpayOrderId;
-              console.log("FINAL ORDER ID USED:", finalOrderId);
+              if (import.meta.env.DEV) {
+                console.log("[Checkout] razorpayOrderId:", razorpayOrderId);
+              }
 
               const res = await orderAPI.createOrder({
                 ...orderPayload,
-                razorpayOrderId: finalOrderId,
+                razorpayOrderId,
                 paymentMethod: paymentMethod,
               });
               dispatch(resetCart());
@@ -105,7 +105,7 @@ const Checkout = () => {
           },
 
           onFailure: (msg) => {
-            toast.error(msg || "Payment verification failed.");
+            toast.error(msg || "Payment failed or cancelled ❌");
           },
         });
       }

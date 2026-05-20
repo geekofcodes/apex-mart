@@ -75,7 +75,9 @@ export const paymentAPI = {
           const razorpayOrderId =
             response.razorpay_order_id || fallbackOrderId;
 
-          console.log("PASSING ORDER ID:", razorpayOrderId);
+          if (import.meta.env.DEV) {
+            console.log("[Razorpay] PASSING ORDER ID:", razorpayOrderId);
+          }
 
           onSuccess?.(razorpayOrderId);
         } catch (err) {
@@ -96,5 +98,22 @@ export const paymentAPI = {
 
     const rzp = new window.Razorpay(options);
     rzp.open();
+  },
+
+  /**
+   * Initiate a refund for a paid order (Admin only).
+   *
+   * @param {string} orderId       - Internal order ID (CUID)
+   * @param {object} [options]
+   * @param {number} [options.amount]  - Partial refund in ₹; omit for full refund
+   * @param {string} [options.reason]  - Reason shown in Razorpay dashboard notes
+   * @returns {Promise<{ refundId, amount, status, speed }>}
+   */
+  refundOrder: async (orderId, { amount, reason } = {}) => {
+    const res = await axiosInstance.post(`/payments/refund/${orderId}`, {
+      ...(amount != null && { amount }),
+      ...(reason && { reason }),
+    });
+    return res.data; // { success, message, data: { refundId, amount, status, speed } }
   },
 };

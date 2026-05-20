@@ -50,6 +50,10 @@ class OrderDTO {
       orderStatus: order.orderStatus,
       paidAt: order.paidAt,
       deliveredAt: order.deliveredAt,
+      razorpayOrderId: order.razorpayOrderId ?? null,
+      razorpayPaymentId: order.razorpayPaymentId ?? null,
+      razorpayRefundId: order.razorpayRefundId ?? null,
+      refundedAt: order.refundedAt ?? null,
       createdAt: order.createdAt,
     };
   }

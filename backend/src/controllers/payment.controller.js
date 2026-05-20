@@ -2,6 +2,7 @@ import crypto from "crypto";
 import {
   createRazorpayOrder,
   verifyRazorpayPayment,
+  createRefund,
 } from "../services/payment.service.js";
 import orderService from "../services/order.service.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -83,6 +84,75 @@ export const verifyPayment = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @route   POST /api/v1/payments/refund/:orderId
+ * @desc    Initiate a Razorpay refund for a paid order
+ * @access  Private/Admin
+ *
+ * Body (optional):
+ *   amount {number} - Partial refund amount in ₹. Omit for full refund.
+ *   reason {string} - Human-readable reason logged in Razorpay notes.
+ */
+export const refundPayment = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { amount, reason } = req.body ?? {};
+
+  // 1. Fetch order (includes razorpayPaymentId & totalPrice)
+  const order = await orderService.getOrderForRefund(orderId);
+
+  if (!order) {
+    return res.status(404).json({ success: false, message: "Order not found" });
+  }
+
+  if (!order.razorpayPaymentId) {
+    return res.status(400).json({
+      success: false,
+      message: "No Razorpay payment ID on record — cannot refund",
+    });
+  }
+
+  // 2. Guard: only refund PAID orders
+  if (order.paymentStatus !== "PAID") {
+    return res.status(400).json({
+      success: false,
+      message: `Cannot refund an order with payment status: ${order.paymentStatus}`,
+    });
+  }
+
+  // 3. Guard: idempotency — don't double-refund
+  if (order.razorpayRefundId) {
+    return res.status(409).json({
+      success: false,
+      message: "Refund already initiated for this order",
+      data: { refundId: order.razorpayRefundId },
+    });
+  }
+
+  // 4. Call Razorpay — amount defaults to full order total if not provided
+  const refundAmount = amount ?? order.totalPrice;
+  const refund = await createRefund({
+    paymentId: order.razorpayPaymentId,
+    amount: refundAmount,
+    notes: { reason: reason || "Admin initiated refund", orderId },
+  });
+
+  // 5. Optimistically mark order as REFUNDED in DB
+  //    The webhook (refund.processed) will confirm — but we update eagerly
+  //    so the admin sees immediate feedback without waiting for the webhook.
+  await orderService.markOrderAsRefunded(orderId, refund.id);
+
+  return res.status(200).json({
+    success: true,
+    message: "Refund initiated successfully",
+    data: {
+      refundId: refund.id,
+      amount: refund.amount / 100, // paise → ₹
+      status: refund.status,
+      speed: refund.speed_requested,
+    },
+  });
+});
+
+/**
  * @route   POST /api/v1/payments/webhook
  * @desc    Razorpay webhook handler — production safety net
  * @access  Public (verified by HMAC, NOT by auth middleware)
@@ -120,11 +190,6 @@ export const handleWebhook = async (req, res) => {
     // Safe to parse now that signature is verified
     const event = JSON.parse(req.body.toString());
     console.log(`[Webhook] Received event: ${event.event}`);
-
-    console.log("WEBHOOK HIT");
-
-    console.log("EVENT:", event.event);
-    console.log("PAYLOAD:", event.payload.payment.entity);
 
     switch (event.event) {
       case "payment.captured": {
@@ -173,6 +238,29 @@ export const handleWebhook = async (req, res) => {
         console.log(
           `[Webhook] ✅ payment.failed → order marked failed for razorpayOrderId=${razorpayOrderId}`,
         );
+        break;
+      }
+
+      case "refund.processed": {
+        const refund = event.payload.refund.entity;
+        const razorpayRefundId  = refund.id;
+        const razorpayPaymentId = refund.payment_id;
+
+        const existingOrder = await orderService.findByRazorpayPaymentId(razorpayPaymentId);
+
+        if (!existingOrder) {
+          console.log(`[Webhook] ⚠️ No order for paymentId=${razorpayPaymentId}, skipping refund.processed`);
+          break;
+        }
+
+        if (existingOrder.paymentStatus === "REFUNDED") {
+          console.log(`[Webhook] ⚠️ Already REFUNDED, skipping duplicate for paymentId=${razorpayPaymentId}`);
+          break;
+        }
+
+        // Webhook confirms the refund — sync order state
+        await orderService.markOrderAsRefunded(existingOrder.id, razorpayRefundId);
+        console.log(`[Webhook] ✅ refund.processed → order REFUNDED for paymentId=${razorpayPaymentId}`);
         break;
       }
 

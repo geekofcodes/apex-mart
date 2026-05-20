@@ -195,20 +195,30 @@ const OrderDetails = () => {
               <span className="text-(--color-text-muted)">Payment Status</span>
               <span
                 className={`font-medium ${
-                  order.paymentStatus === "completed" || order.paymentStatus === "paid"
+                  order.paymentStatus?.toUpperCase() === "PAID"
                     ? "text-(--color-success)"
-                    : "text-(--color-warning)"
+                    : order.paymentStatus?.toUpperCase() === "FAILED"
+                      ? "text-(--color-error)"
+                      : "text-(--color-warning)"
                 }`}
               >
                 {order.paymentStatus || "Pending"}
               </span>
             </div>
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-sm mb-2">
               <span className="text-(--color-text-muted)">Method</span>
               <span className="text-(--color-text-primary) capitalize">
                 {order.paymentMethod || "COD"}
               </span>
             </div>
+            {order.razorpayPaymentId && (
+              <div className="flex items-start justify-between text-sm mt-3 pt-3 border-t border-(--color-border)">
+                <span className="text-(--color-text-muted)">Payment Ref</span>
+                <span className="text-(--color-text-muted) font-mono text-xs break-all text-right max-w-[160px]">
+                  {order.razorpayPaymentId}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

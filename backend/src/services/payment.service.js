@@ -61,3 +61,27 @@ export const verifyRazorpayPayment = ({
 
   return expectedSignature === razorpay_signature;
 };
+
+/**
+ * Initiate a Razorpay refund for a captured payment.
+ *
+ * @param {object} options
+ * @param {string} options.paymentId  - Razorpay payment ID (pay_xxx)
+ * @param {number} options.amount     - Amount to refund in ₹ (full refund if omitted)
+ * @param {string} [options.notes]    - Optional reason / notes for the refund
+ * @returns {Promise<object>}         - Razorpay refund entity
+ */
+export const createRefund = async ({ paymentId, amount, notes = {} }) => {
+  const refundOptions = {
+    speed: "normal", // 'normal' (5-7 days) | 'optimum' (instant for eligible banks)
+    notes,
+  };
+
+  // Include amount only for partial refunds; omit for full refund
+  if (amount != null) {
+    refundOptions.amount = Math.round(amount * 100); // ₹ → paise
+  }
+
+  const refund = await razorpay.payments.refund(paymentId, refundOptions);
+  return refund;
+};

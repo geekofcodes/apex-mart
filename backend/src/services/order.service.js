@@ -149,7 +149,9 @@ class OrderService {
     // signature gate before calling this endpoint, so we can set the final
     // payment state directly inside the creation transaction — no second update.
     const isRazorpay = paymentMethod?.toUpperCase() === "RAZORPAY";
-    console.log("SERVICE RECEIVED:", orderData.razorpayOrderId);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Order Service] SERVICE RECEIVED razorpayOrderId:", orderData.razorpayOrderId);
+    }
     let order;
     try {
       order = await orderRepository.create(
@@ -226,6 +228,37 @@ class OrderService {
     await orderRepository.updateByRazorpayOrderId(razorpayOrderId, {
       paymentStatus: "FAILED",
     });
+  }
+
+  /**
+   * Fetch minimal order data needed by the refund controller.
+   * Returns the raw DB row (not the normalised shape) so the controller
+   * can read razorpayPaymentId, razorpayRefundId, paymentStatus, totalPrice.
+   */
+  async getOrderForRefund(orderId) {
+    return await orderRepository.findForRefund(orderId);
+  }
+
+  /**
+   * Look up a single order by its Razorpay payment ID.
+   * Used by the refund.processed webhook for idempotency pre-checks.
+   */
+  async findByRazorpayPaymentId(razorpayPaymentId) {
+    if (!razorpayPaymentId) return null;
+    return await orderRepository.findByRazorpayPaymentId(razorpayPaymentId);
+  }
+
+  /**
+   * Atomically mark an order as REFUNDED.
+   * Called both eagerly (by refundPayment controller) and by the webhook
+   * (refund.processed) — idempotency is ensured at the controller level.
+   *
+   * @param {string} orderId          - Internal CUID of the order
+   * @param {string} razorpayRefundId - Razorpay refund ID (rfnd_xxx)
+   */
+  async markOrderAsRefunded(orderId, razorpayRefundId) {
+    if (!orderId) return;
+    await orderRepository.markRefunded(orderId, razorpayRefundId);
   }
 
   // ─── Read (continued) ─────────────────────────────────────────────────────

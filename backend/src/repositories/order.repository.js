@@ -247,7 +247,9 @@ class OrderRepository {
     orderItems,
     options = {},
   ) {
-    console.log("REPO RECEIVED:", options.razorpayOrderId);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Order Repo] REPO RECEIVED razorpayOrderId:", options.razorpayOrderId);
+    }
 
     // ── Pre-flight: validate payment method ────────────────────────────────
     const prismaPaymentMethod = paymentMethod?.toUpperCase() ?? "COD";
@@ -695,6 +697,55 @@ class OrderRepository {
     return await prisma.order.findFirst({
       where: { razorpayOrderId },
       select: { id: true, paymentStatus: true, orderStatus: true },
+    });
+  }
+
+  /**
+   * Find a single order by Razorpay payment ID.
+   * Used by the refund.processed webhook for idempotency pre-checks.
+   */
+  async findByRazorpayPaymentId(razorpayPaymentId) {
+    if (!razorpayPaymentId) return null;
+    return await prisma.order.findFirst({
+      where: { razorpayPaymentId },
+      select: { id: true, paymentStatus: true, orderStatus: true },
+    });
+  }
+
+  /**
+   * Fetch the minimal fields needed by the refund controller.
+   * Returns the raw Prisma row — no normalisation, no relation loading.
+   */
+  async findForRefund(orderId) {
+    if (!orderId) return null;
+    return await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        totalPrice: true,
+        paymentStatus: true,
+        orderStatus: true,
+        razorpayPaymentId: true,
+        razorpayRefundId: true,
+      },
+    });
+  }
+
+  /**
+   * Atomically mark an order as REFUNDED.
+   * Sets paymentStatus=REFUNDED, orderStatus=CANCELLED, stores the
+   * Razorpay refund ID, and records the refundedAt timestamp.
+   */
+  async markRefunded(orderId, razorpayRefundId) {
+    if (!orderId) return null;
+    return await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentStatus: "REFUNDED",
+        orderStatus: "CANCELLED",
+        razorpayRefundId: razorpayRefundId ?? null,
+        refundedAt: new Date(),
+      },
     });
   }
 }

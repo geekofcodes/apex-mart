@@ -75,6 +75,10 @@ const OrderSuccess = () => {
           Order Placed Successfully 🎉
         </h1>
 
+        <p className="text-green-600 font-medium mb-1">
+          Your payment was successful and order is confirmed!
+        </p>
+
         <p className="text-gray-500 mb-1">
           Your order has been placed and will be processed soon.
         </p>

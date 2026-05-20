@@ -246,6 +246,8 @@ model Order {
 
   razorpayOrderId   String? @map("razorpay_order_id")
   razorpayPaymentId String? @map("razorpay_payment_id")
+  razorpayRefundId  String? @map("razorpay_refund_id")
+  refundedAt        DateTime? @map("refunded_at")
 
   user            User     @relation(fields: [userId], references: [id])
   shippingAddress Address? @relation(fields: [addressId], references: [id])
@@ -259,6 +261,7 @@ model Order {
   @@index([userId])
   @@index([userId, orderStatus, paymentStatus])
   @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
   @@map("orders")
 }
 
