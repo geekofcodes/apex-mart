@@ -12,7 +12,7 @@ class UserDTO {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: user.role?.toLowerCase?.() || null,
       phone: user.phone || null,
       avatar: user.avatar || null,
       isEmailVerified: user.isEmailVerified,
@@ -30,7 +30,7 @@ class UserDTO {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: user.role?.toLowerCase?.() || null,
       phone: user.phone || null,
       avatar: user.avatar || null,
       address: user.address || {
@@ -55,7 +55,7 @@ class UserDTO {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: user.role?.toLowerCase?.() || null,
       phone: user.phone || null,
       isEmailVerified: user.isEmailVerified,
       isActive: user.isActive,
@@ -71,7 +71,7 @@ class UserDTO {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: user.role?.toLowerCase?.() || null,
       avatar: user.avatar || null,
     };
   }
