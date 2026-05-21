@@ -165,6 +165,7 @@ class OrderService {
           initialOrderStatus: isRazorpay ? "CONFIRMED" : "PENDING",
           paidAt: isRazorpay ? new Date() : null,
           razorpayOrderId: orderData.razorpayOrderId ?? null,
+          razorpayPaymentId: orderData.razorpayPaymentId ?? null,
         },
       );
     } catch (err) {

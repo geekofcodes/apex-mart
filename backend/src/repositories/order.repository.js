@@ -1,5 +1,8 @@
 import prisma from "../config/prisma.js";
 import { ORDER_STATUS, PAYMENT_STATUS } from "../utils/constants.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 /**
  * Maps service-level string constants → Prisma enum values.
@@ -248,7 +251,10 @@ class OrderRepository {
     options = {},
   ) {
     if (process.env.NODE_ENV === "development") {
-      console.log("[Order Repo] REPO RECEIVED razorpayOrderId:", options.razorpayOrderId);
+      console.log(
+        "[Order Repo] REPO RECEIVED razorpayOrderId:",
+        options.razorpayOrderId,
+      );
     }
 
     // ── Pre-flight: validate payment method ────────────────────────────────
@@ -390,7 +396,19 @@ class OrderRepository {
         const initialOrderStatus = options.initialOrderStatus ?? "PENDING";
         const initialPaidAt = options.paidAt ?? null;
         const razorpayOrderId = options.razorpayOrderId ?? null;
-        console.log("REPO RECEIVED:", razorpayOrderId);
+        const razorpayPaymentId = options.razorpayPaymentId ?? null;
+
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            "[Order Repo] CREATING ORDER with razorpayOrderId:",
+            razorpayOrderId,
+          );
+          console.log(
+            "[Order Repo] CREATING ORDER with razorpayPaymentId:",
+            razorpayPaymentId,
+          );
+        }
+
         let created;
         try {
           created = await tx.order.create({
@@ -407,6 +425,7 @@ class OrderRepository {
               orderStatus: initialOrderStatus,
               paidAt: initialPaidAt,
               razorpayOrderId,
+              razorpayPaymentId,
               orderItems: { create: verifiedItems },
             },
             include: this.#include,
@@ -431,6 +450,7 @@ class OrderRepository {
                 orderStatus: initialOrderStatus,
                 paidAt: initialPaidAt,
                 razorpayOrderId,
+                razorpayPaymentId,
                 orderItems: { create: verifiedItems },
               },
               include: this.#include,

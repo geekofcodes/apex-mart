@@ -71,15 +71,18 @@ export const paymentAPI = {
           console.log("RAZORPAY RESPONSE:", response);
           console.log("ORDER FROM BACKEND:", order);
 
-          // 🔥 FINAL FIX
-          const razorpayOrderId =
-            response.razorpay_order_id || fallbackOrderId;
+          const razorpayOrderId = response.razorpay_order_id || fallbackOrderId;
 
           if (import.meta.env.DEV) {
             console.log("[Razorpay] PASSING ORDER ID:", razorpayOrderId);
           }
 
-          onSuccess?.(razorpayOrderId);
+          const razorpayPaymentId = response.razorpay_payment_id;
+
+          onSuccess?.({
+            razorpayOrderId,
+            razorpayPaymentId,
+          });
         } catch (err) {
           console.error("Razorpay handler error:", err);
           onFailure?.("Payment failed.");

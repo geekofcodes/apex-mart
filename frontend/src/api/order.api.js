@@ -3,7 +3,7 @@ import axiosInstance from "./axios";
 export const orderAPI = {
   createOrder: async (data) => {
     const response = await axiosInstance.post("/orders", data);
-    return response.data.data; // the order object directly
+    return response.data.data;
   },
   // Get current user's order history
   getMyOrders: async (page = 1, limit = 10) => {

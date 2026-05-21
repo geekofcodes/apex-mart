@@ -79,17 +79,17 @@ const Checkout = () => {
           order: rpOrder,
           user: data,
 
-          onSuccess: async () => {
+          onSuccess: async ({ razorpayOrderId, razorpayPaymentId }) => {
             try {
-              const razorpayOrderId = rpOrder.orderId; // 🔥 ALWAYS RELIABLE
-
               if (import.meta.env.DEV) {
-                console.log("[Checkout] razorpayOrderId:", razorpayOrderId);
+                console.log("[Checkout] OrderId:", razorpayOrderId);
+                console.log("[Checkout] PaymentId:", razorpayPaymentId);
               }
 
               const res = await orderAPI.createOrder({
                 ...orderPayload,
                 razorpayOrderId,
+                razorpayPaymentId,
                 paymentMethod: paymentMethod,
               });
               dispatch(resetCart());
