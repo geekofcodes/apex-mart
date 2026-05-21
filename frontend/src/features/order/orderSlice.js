@@ -36,6 +36,7 @@ export const fetchAllOrders = createAsyncThunk(
   async (params, { rejectWithValue }) => {
     try {
       const response = await orderAPI.getAllOrders(params);
+      console.log("fetchAllOrders - API Response:", response.data);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -123,7 +124,9 @@ const orderSlice = createSlice({
         // My api wrapper returns `response.data` (the body).
         // So action.payload is the body.
         // Body structure: { success, message, data: OrderDTO[], meta }
-        state.adminOrders = action.payload.data || [];
+        state.adminOrders = Array.isArray(action.payload)
+          ? action.payload
+          : action.payload.data || [];
         state.meta = action.payload.meta;
       })
       .addCase(fetchAllOrders.rejected, (state, action) => {

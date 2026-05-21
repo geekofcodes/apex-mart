@@ -17,8 +17,16 @@ export const authorize = (...roles) => {
       throw new AppError("Authentication required", HTTP_STATUS.UNAUTHORIZED);
     }
 
+    const userRole = req.user.role.toLowerCase();
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `Authorizing user ${req.user.id} with role ${userRole} for roles: ${roles.join(", ")}`,
+      );
+    }
+
     // Check if user has required role
-    if (!roles.includes(req.user.role)) {
+    if (!roles.includes(userRole)) {
       throw new AppError(
         "You do not have permission to perform this action",
         HTTP_STATUS.FORBIDDEN,
@@ -58,7 +66,7 @@ export const isOwnerOrAdmin = (req, res, next) => {
 
   const resourceUserId = req.params.userId || req.params.id;
   const isOwner = req.user.id.toString() === resourceUserId;
-  const isAdmin = req.user.role === USER_ROLES.ADMIN;
+  const isAdmin = req.user.role.toLowerCase() === USER_ROLES.ADMIN.toLowerCase();
 
   if (!isOwner && !isAdmin) {
     throw new AppError(

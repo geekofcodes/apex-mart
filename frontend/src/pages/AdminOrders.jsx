@@ -132,17 +132,12 @@ const AdminOrders = () => {
                       #{order.id.slice(-6).toUpperCase()}
                     </td>
                     <td className="px-6 py-4">
-                      {/* OrderDTO might not have user info directly populated in top level, assuming it might be or we use fallback */}
-                      {/* Checking contract: OrderDTO { id, items, totalAmount, orderStatus, paymentStatus, createdAt } - NO USER INFO in DTO? */}
-                      {/* This is a common gap. Admin usually needs user info. 
-                                                If backend doesn't send it, we can't show it. 
-                                                I'll put a placeholder or check if my userDTO is embedded. */}
                       <span className="text-(--color-text-primary)">
-                        Customer
+                        {order.user?.name || "Unknown User"}
                       </span>{" "}
                       <br />
                       <span className="text-xs text-(--color-text-muted)">
-                        ID: {order.user || "N/A"}
+                        ID: {order.user?.id || "N/A"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-(--color-text-muted)">
