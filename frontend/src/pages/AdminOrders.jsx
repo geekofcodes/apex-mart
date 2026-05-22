@@ -9,6 +9,7 @@ import {
   selectOrderMeta,
 } from "@/features/order/orderSlice";
 import { formatCurrency, formatDate } from "@/utils/helpers";
+import { paymentAPI } from "@/api/payment.api";
 import {
   Loader2,
   Search,
@@ -17,6 +18,7 @@ import {
   ChevronRight,
   Eye,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 // Status options for update
 const ORDER_STATUSES = [
@@ -49,6 +51,7 @@ const AdminOrders = () => {
   const orders = useAppSelector(selectAdminOrders);
   const loading = useAppSelector(selectOrderLoading);
   const meta = useAppSelector(selectOrderMeta);
+  const [loadingId, setLoadingId] = useState(null);
 
   // Local state for pagination or filters (mocking pagination for now if backend doesn't fully support it via params in the slice yet)
   const [page, setPage] = useState(1);
@@ -62,6 +65,20 @@ const AdminOrders = () => {
     setStatusUpdating(orderId);
     await dispatch(updateOrderStatus({ id: orderId, status: newStatus }));
     setStatusUpdating(null);
+  };
+
+  const handleRefund = async (orderId, { reason }) => {
+    try {
+      setLoadingId(orderId);
+      console.log("Initiating refund for order:", orderId);
+      await paymentAPI.refundOrder(orderId, { reason });
+      toast.success("Refund initiated ✅");
+      dispatch(fetchAllOrders());
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Refund failed");
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   return (
@@ -158,7 +175,7 @@ const AdminOrders = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {/* Status Dropdown / Controls */}
+                        {/* Status Dropdown */}
                         <select
                           value={order.orderStatus}
                           onChange={(e) =>
@@ -173,6 +190,28 @@ const AdminOrders = () => {
                             </option>
                           ))}
                         </select>
+
+                        {/* Refund Button */}
+                        {order.paymentStatus?.toLowerCase() === "completed" ? (
+                          <button
+                            onClick={() =>
+                              handleRefund(order.id, {
+                                reason: "Admin-initiated refund from dashboard",
+                              })
+                            }
+                            disabled={loadingId === order.id}
+                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-xs"
+                          >
+                            {loadingId === order.id ? "..." : "Refund"}
+                          </button>
+                        ) : order.paymentStatus?.toLowerCase() ===
+                          "refunded" ? (
+                          <span className="text-green-600 text-xs font-medium">
+                            Refunded ✅
+                          </span>
+                        ) : null}
+
+                        {/* Loader */}
                         {statusUpdating === order.id && (
                           <Loader2 className="w-3 h-3 animate-spin text-(--color-primary)" />
                         )}

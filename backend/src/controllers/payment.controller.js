@@ -128,12 +128,24 @@ export const refundPayment = asyncHandler(async (req, res) => {
   }
 
   // 4. Call Razorpay — amount defaults to full order total if not provided
-  const refundAmount = amount ?? order.totalPrice;
-  const refund = await createRefund({
-    paymentId: order.razorpayPaymentId,
-    amount: refundAmount,
-    notes: { reason: reason || "Admin initiated refund", orderId },
-  });
+  const refundAmount = amount ?? null;
+
+  let refund;
+
+  try {
+    refund = await createRefund({
+      paymentId: order.razorpayPaymentId,
+      amount: refundAmount,
+      notes: { reason: reason || "Admin initiated refund", orderId },
+    });
+  } catch (err) {
+    console.error("RAZORPAY REFUND ERROR:", err); // 🔥 IMPORTANT
+
+    return res.status(400).json({
+      success: false,
+      message: err?.error?.description || "Refund failed",
+    });
+  }
 
   // 5. Optimistically mark order as REFUNDED in DB
   //    The webhook (refund.processed) will confirm — but we update eagerly
@@ -198,19 +210,27 @@ export const handleWebhook = async (req, res) => {
         const razorpayPaymentId = payment.id;
 
         // Pre-check: find order and guard against double-processing
-        const existingOrder = await orderService.findByRazorpayOrderId(razorpayOrderId);
+        const existingOrder =
+          await orderService.findByRazorpayOrderId(razorpayOrderId);
 
         if (!existingOrder) {
-          console.log(`[Webhook] ⚠️ No order found for razorpayOrderId=${razorpayOrderId}, skipping`);
+          console.log(
+            `[Webhook] ⚠️ No order found for razorpayOrderId=${razorpayOrderId}, skipping`,
+          );
           break;
         }
 
         if (existingOrder.paymentStatus === "PAID") {
-          console.log(`[Webhook] ⚠️ Already processed (PAID), skipping for razorpayOrderId=${razorpayOrderId}`);
+          console.log(
+            `[Webhook] ⚠️ Already processed (PAID), skipping for razorpayOrderId=${razorpayOrderId}`,
+          );
           break;
         }
 
-        await orderService.markOrderAsPaidByRazorpayOrderId(razorpayOrderId, razorpayPaymentId);
+        await orderService.markOrderAsPaidByRazorpayOrderId(
+          razorpayOrderId,
+          razorpayPaymentId,
+        );
         console.log(
           `[Webhook] ✅ payment.captured → order updated for razorpayOrderId=${razorpayOrderId}`,
         );
@@ -222,15 +242,20 @@ export const handleWebhook = async (req, res) => {
         const razorpayOrderId = payment.order_id;
 
         // Pre-check: find order and guard against double-processing
-        const existingOrder = await orderService.findByRazorpayOrderId(razorpayOrderId);
+        const existingOrder =
+          await orderService.findByRazorpayOrderId(razorpayOrderId);
 
         if (!existingOrder) {
-          console.log(`[Webhook] ⚠️ No order found for razorpayOrderId=${razorpayOrderId}, skipping`);
+          console.log(
+            `[Webhook] ⚠️ No order found for razorpayOrderId=${razorpayOrderId}, skipping`,
+          );
           break;
         }
 
         if (existingOrder.paymentStatus === "FAILED") {
-          console.log(`[Webhook] ⚠️ Already marked FAILED, skipping for razorpayOrderId=${razorpayOrderId}`);
+          console.log(
+            `[Webhook] ⚠️ Already marked FAILED, skipping for razorpayOrderId=${razorpayOrderId}`,
+          );
           break;
         }
 
@@ -243,24 +268,34 @@ export const handleWebhook = async (req, res) => {
 
       case "refund.processed": {
         const refund = event.payload.refund.entity;
-        const razorpayRefundId  = refund.id;
+        const razorpayRefundId = refund.id;
         const razorpayPaymentId = refund.payment_id;
 
-        const existingOrder = await orderService.findByRazorpayPaymentId(razorpayPaymentId);
+        const existingOrder =
+          await orderService.findByRazorpayPaymentId(razorpayPaymentId);
 
         if (!existingOrder) {
-          console.log(`[Webhook] ⚠️ No order for paymentId=${razorpayPaymentId}, skipping refund.processed`);
+          console.log(
+            `[Webhook] ⚠️ No order for paymentId=${razorpayPaymentId}, skipping refund.processed`,
+          );
           break;
         }
 
         if (existingOrder.paymentStatus === "REFUNDED") {
-          console.log(`[Webhook] ⚠️ Already REFUNDED, skipping duplicate for paymentId=${razorpayPaymentId}`);
+          console.log(
+            `[Webhook] ⚠️ Already REFUNDED, skipping duplicate for paymentId=${razorpayPaymentId}`,
+          );
           break;
         }
 
         // Webhook confirms the refund — sync order state
-        await orderService.markOrderAsRefunded(existingOrder.id, razorpayRefundId);
-        console.log(`[Webhook] ✅ refund.processed → order REFUNDED for paymentId=${razorpayPaymentId}`);
+        await orderService.markOrderAsRefunded(
+          existingOrder.id,
+          razorpayRefundId,
+        );
+        console.log(
+          `[Webhook] ✅ refund.processed → order REFUNDED for paymentId=${razorpayPaymentId}`,
+        );
         break;
       }
 
