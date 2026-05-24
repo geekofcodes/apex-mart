@@ -149,9 +149,6 @@ class OrderService {
     // signature gate before calling this endpoint, so we can set the final
     // payment state directly inside the creation transaction — no second update.
     const isRazorpay = paymentMethod?.toUpperCase() === "RAZORPAY";
-    if (process.env.NODE_ENV === "development") {
-      console.log("[Order Service] SERVICE RECEIVED razorpayOrderId:", orderData.razorpayOrderId);
-    }
     let order;
     try {
       order = await orderRepository.create(

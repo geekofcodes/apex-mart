@@ -15,9 +15,6 @@ import { HTTP_STATUS } from "../utils/constants.js";
  * @access  Private
  */
 export const placeOrder = asyncHandler(async (req, res) => {
-  if (process.env.NODE_ENV === "development") {
-    console.log("[Order Controller] REQ BODY:", req.body);
-  }
   const order = await orderService.placeOrder(req.user.id, req.body);
 
   return ApiResponse.success(

@@ -139,7 +139,7 @@ export const refundPayment = asyncHandler(async (req, res) => {
       notes: { reason: reason || "Admin initiated refund", orderId },
     });
   } catch (err) {
-    console.error("RAZORPAY REFUND ERROR:", err); // 🔥 IMPORTANT
+    console.error("RAZORPAY REFUND ERROR:", err);
 
     return res.status(400).json({
       success: false,
@@ -189,7 +189,7 @@ export const handleWebhook = async (req, res) => {
     // Verify HMAC using the WEBHOOK secret (different from KEY_SECRET)
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
-      .update(req.body) // req.body is a Buffer here (express.raw)
+      .update(req.body)
       .digest("hex");
 
     if (expectedSignature !== signature) {
@@ -201,7 +201,6 @@ export const handleWebhook = async (req, res) => {
 
     // Safe to parse now that signature is verified
     const event = JSON.parse(req.body.toString());
-    console.log(`[Webhook] Received event: ${event.event}`);
 
     switch (event.event) {
       case "payment.captured": {

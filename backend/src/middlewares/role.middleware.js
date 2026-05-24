@@ -19,12 +19,6 @@ export const authorize = (...roles) => {
 
     const userRole = req.user.role.toLowerCase();
 
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        `Authorizing user ${req.user.id} with role ${userRole} for roles: ${roles.join(", ")}`,
-      );
-    }
-
     // Check if user has required role
     if (!roles.includes(userRole)) {
       throw new AppError(
