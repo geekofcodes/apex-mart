@@ -56,10 +56,35 @@ const AdminOrders = () => {
   // Local state for pagination or filters (mocking pagination for now if backend doesn't fully support it via params in the slice yet)
   const [page, setPage] = useState(1);
   const [statusUpdating, setStatusUpdating] = useState(null); // track which order is updating
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     dispatch(fetchAllOrders({ page, limit: 10 }));
   }, [dispatch, page]);
+
+  const filteredOrders = orders.filter((order) => {
+    // Status filter
+    if (statusFilter !== "all") {
+      if (order.paymentStatus?.toLowerCase() !== statusFilter) {
+        return false;
+      }
+    }
+
+    // Search filter
+    if (searchQuery.trim() !== "") {
+      const q = searchQuery.toLowerCase();
+
+      const matches =
+        order.id?.toLowerCase().includes(q) ||
+        order.user?.name?.toLowerCase().includes(q) ||
+        order.user?.id?.toLowerCase().includes(q);
+
+      if (!matches) return false;
+    }
+
+    return true;
+  });
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     setStatusUpdating(orderId);
@@ -92,16 +117,41 @@ const AdminOrders = () => {
             Manage and update customer orders.
           </p>
         </div>
+
         {/* Placeholder Search/Filter */}
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search (keep existing UI) */}
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-(--color-text-muted)" />
             <input
               type="text"
               placeholder="Search orders..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 pr-4 py-2 bg-(--color-surface) border border-(--color-border) rounded-lg text-sm focus:outline-none focus:border-(--color-primary) w-64"
             />
           </div>
+
+          {/* Status Filter Buttons */}
+          <div className="flex gap-2">
+            {["all", "completed", "pending", "refunded"].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1 rounded-md text-xs capitalize border ${
+                  statusFilter === status
+                    ? "bg-(--color-primary) text-white"
+                    : "bg-(--color-surface) text-(--color-text-muted)"
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")}>Clear</button>
+          )}
         </div>
       </div>
 
@@ -140,7 +190,7 @@ const AdminOrders = () => {
                   </td>
                 </tr>
               ) : (
-                orders.map((order) => (
+                filteredOrders.map((order) => (
                   <tr
                     key={order.id}
                     className="hover:bg-(--color-background-alt)/50 transition-colors cursor-pointer"
@@ -226,7 +276,7 @@ const AdminOrders = () => {
 
         {/* Pagination Stats (Mock) */}
         <div className="p-4 border-t border-(--color-border) flex justify-between items-center text-sm text-(--color-text-muted)">
-          <span>Showing {orders.length} orders</span>
+          <span>Showing {filteredOrders.length} orders</span>
           <div className="flex gap-2">
             <button
               disabled={page <= 1}
