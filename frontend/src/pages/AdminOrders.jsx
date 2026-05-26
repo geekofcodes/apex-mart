@@ -57,6 +57,8 @@ const AdminOrders = () => {
   const [page, setPage] = useState(1);
   const [statusUpdating, setStatusUpdating] = useState(null); // track which order is updating
   const [statusFilter, setStatusFilter] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -81,6 +83,23 @@ const AdminOrders = () => {
         order.user?.id?.toLowerCase().includes(q);
 
       if (!matches) return false;
+    }
+
+    // Date filter (CRITICAL FIX)
+    const orderDate = new Date(order.createdAt);
+
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      if (orderDate < start) return false;
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      if (orderDate > end) return false;
     }
 
     return true;
@@ -132,6 +151,21 @@ const AdminOrders = () => {
             />
           </div>
 
+          {/* Date Filters */}
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="px-3 py-2 border border-(--color-border) rounded-lg text-sm"
+          />
+
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="px-3 py-2 border border-(--color-border) rounded-lg text-sm"
+          />
+
           {/* Status Filter Buttons */}
           <div className="flex gap-2">
             {["all", "completed", "pending", "refunded"].map((status) => (
@@ -149,9 +183,17 @@ const AdminOrders = () => {
             ))}
           </div>
 
-          {searchQuery && (
-            <button onClick={() => setSearchQuery("")}>Clear</button>
-          )}
+          <button
+            onClick={() => {
+              setStartDate("");
+              setEndDate("");
+              setSearchQuery("");
+              setStatusFilter("all");
+            }}
+            className="px-3 py-1 text-xs border rounded"
+          >
+            Reset
+          </button>
         </div>
       </div>
 
