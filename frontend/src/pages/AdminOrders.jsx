@@ -60,6 +60,7 @@ const AdminOrders = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   useEffect(() => {
     dispatch(fetchAllOrders({ page, limit: 10 }));
@@ -235,6 +236,7 @@ const AdminOrders = () => {
                 filteredOrders.map((order) => (
                   <tr
                     key={order.id}
+                    onClick={() => setSelectedOrder(order)}
                     className="hover:bg-(--color-background-alt)/50 transition-colors cursor-pointer"
                   >
                     <td className="px-6 py-4 font-mono font-medium text-(--color-text-primary)">
@@ -270,9 +272,10 @@ const AdminOrders = () => {
                         {/* Status Dropdown */}
                         <select
                           value={order.orderStatus}
-                          onChange={(e) =>
-                            handleStatusUpdate(order.id, e.target.value)
-                          }
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleStatusUpdate(order.id, e.target.value);
+                          }}
                           disabled={statusUpdating === order.id}
                           className="bg-(--color-background) border border-(--color-border) text-xs rounded px-2 py-1 focus:outline-none focus:border-(--color-primary) disabled:opacity-50"
                         >
@@ -286,11 +289,12 @@ const AdminOrders = () => {
                         {/* Refund Button */}
                         {order.paymentStatus?.toLowerCase() === "completed" ? (
                           <button
-                            onClick={() =>
+                            onClick={() => {
+                              e.stopPropagation();
                               handleRefund(order.id, {
                                 reason: "Admin-initiated refund from dashboard",
-                              })
-                            }
+                              });
+                            }}
                             disabled={loadingId === order.id}
                             className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-xs"
                           >
@@ -337,6 +341,79 @@ const AdminOrders = () => {
           </div>
         </div>
       </div>
+
+      {/* Order Details Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl w-[90%] max-w-2xl p-6 relative">
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedOrder(null)}
+              className="absolute top-3 right-3 text-gray-500"
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <h2 className="text-xl font-bold mb-4">
+              Order #{selectedOrder.id.slice(-6).toUpperCase()}
+            </h2>
+
+            {/* Customer */}
+            <div className="mb-4">
+              <h3 className="font-semibold">Customer</h3>
+              <p>{selectedOrder.user?.name}</p>
+              <p className="text-sm text-gray-500">
+                {selectedOrder.user?.email}
+              </p>
+            </div>
+
+            {/* Order Info */}
+            <div className="mb-4 grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500">Date</p>
+                <p>{formatDate(selectedOrder.createdAt)}</p>
+              </div>
+
+              <div>
+                <p className="text-gray-500">Total</p>
+                <p className="font-bold">
+                  {formatCurrency(selectedOrder.totalAmount)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-gray-500">Payment Status</p>
+                <p>{selectedOrder.paymentStatus}</p>
+              </div>
+
+              <div>
+                <p className="text-gray-500">Order Status</p>
+                <p>{selectedOrder.orderStatus}</p>
+              </div>
+            </div>
+
+            {/* Items */}
+            <div>
+              <h3 className="font-semibold mb-2">Items</h3>
+
+              <div className="space-y-2">
+                {selectedOrder.items?.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between text-sm border p-2 rounded"
+                  >
+                    <span>
+                      {item.product?.name || "Product"} × {item.quantity}
+                    </span>
+                    <span>{formatCurrency(item.price * item.quantity)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
