@@ -46,6 +46,19 @@ const getStatusColor = (status) => {
   }
 };
 
+const getPaymentColor = (status) => {
+  switch (status?.toLowerCase()) {
+    case "completed":
+      return "bg-green-100 text-green-700";
+    case "pending":
+      return "bg-yellow-100 text-yellow-700";
+    case "refunded":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-gray-100 text-gray-600";
+  }
+};
+
 const AdminOrders = () => {
   const dispatch = useDispatch();
   const orders = useAppSelector(selectAdminOrders);
@@ -289,7 +302,7 @@ const AdminOrders = () => {
                         {/* Refund Button */}
                         {order.paymentStatus?.toLowerCase() === "completed" ? (
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
                               e.stopPropagation();
                               handleRefund(order.id, {
                                 reason: "Admin-initiated refund from dashboard",
@@ -298,12 +311,16 @@ const AdminOrders = () => {
                             disabled={loadingId === order.id}
                             className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-xs"
                           >
-                            {loadingId === order.id ? "..." : "Refund"}
+                            {loadingId === order.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              "Refund"
+                            )}
                           </button>
                         ) : order.paymentStatus?.toLowerCase() ===
                           "refunded" ? (
                           <span className="text-green-600 text-xs font-medium">
-                            Refunded ✅
+                            Refunded
                           </span>
                         ) : null}
 
@@ -344,8 +361,15 @@ const AdminOrders = () => {
 
       {/* Order Details Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl w-[90%] max-w-2xl p-6 relative">
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          onClick={() => setSelectedOrder(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            // className="bg-(--color-surface) rounded-2xl w-[95%] max-w-3xl p-6 relative shadow-xl"
+            className="bg-(--color-surface) rounded-2xl w-[95%] max-w-3xl p-6 relative shadow-xl max-h-[90vh] overflow-y-auto"
+          >
             {/* Close Button */}
             <button
               onClick={() => setSelectedOrder(null)}
@@ -355,61 +379,170 @@ const AdminOrders = () => {
             </button>
 
             {/* Header */}
-            <h2 className="text-xl font-bold mb-4">
-              Order #{selectedOrder.id.slice(-6).toUpperCase()}
-            </h2>
-
-            {/* Customer */}
-            <div className="mb-4">
-              <h3 className="font-semibold">Customer</h3>
-              <p>{selectedOrder.user?.name}</p>
-              <p className="text-sm text-gray-500">
-                {selectedOrder.user?.email}
-              </p>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-bold">
+                  Order #{selectedOrder.id.slice(-6).toUpperCase()}
+                </h2>
+                <p className="text-sm text-(--color-text-muted)">
+                  {formatDate(selectedOrder.createdAt)}
+                </p>
+              </div>
             </div>
 
-            {/* Order Info */}
-            <div className="mb-4 grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-500">Date</p>
-                <p>{formatDate(selectedOrder.createdAt)}</p>
-              </div>
-
-              <div>
-                <p className="text-gray-500">Total</p>
-                <p className="font-bold">
-                  {formatCurrency(selectedOrder.totalAmount)}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Customer */}
+              <div className="p-4 border rounded-lg">
+                <h3 className="font-semibold mb-2 text-sm text-(--color-text-muted)">
+                  Customer
+                </h3>
+                <p className="font-medium">{selectedOrder.user?.name}</p>
+                <p className="text-xs text-(--color-text-muted)">
+                  {selectedOrder.user?.email}
                 </p>
               </div>
 
-              <div>
-                <p className="text-gray-500">Payment Status</p>
-                <p>{selectedOrder.paymentStatus}</p>
+              {/* Payment */}
+              <div className="p-4 border rounded-lg">
+                <h3 className="font-semibold mb-2 text-sm text-(--color-text-muted)">
+                  Payment
+                </h3>
+
+                <p className="text-sm">
+                  Status:{" "}
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${getPaymentColor(
+                      selectedOrder.paymentStatus,
+                    )}`}
+                  >
+                    {selectedOrder.paymentStatus}
+                  </span>
+                  {selectedOrder.orderStatus === "cancelled" && (
+                    <span className="ml-2 text-xs text-red-500 font-medium">
+                      • Cancelled
+                    </span>
+                  )}
+                </p>
+
+                <p className="text-sm mt-1">
+                  Method: {selectedOrder.paymentMethod || "Razorpay"}
+                </p>
+
+                <div className="text-xs mt-1 flex items-center gap-2">
+                  <span>Payment ID:</span>
+
+                  <span className="font-mono text-xs">
+                    {selectedOrder.razorpayPaymentId || "N/A"}
+                  </span>
+
+                  {selectedOrder.razorpayPaymentId && (
+                    <button
+                      disabled={!selectedOrder.razorpayPaymentId}
+                      onClick={() => {
+                        if (!selectedOrder.razorpayPaymentId) return;
+                        navigator.clipboard.writeText(
+                          selectedOrder.razorpayPaymentId,
+                        );
+                        toast.success("Copied!");
+                      }}
+                      className="text-blue-500 text-[10px] cursor-pointer hover:underline"
+                    >
+                      Copy
+                    </button>
+                  )}
+                </div>
+
+                {selectedOrder.razorpayRefundId && (
+                  <div className="text-xs mt-1 text-red-500 flex items-center gap-2">
+                    <span>Refund ID:</span>
+
+                    <span className="font-mono text-xs">
+                      {selectedOrder.razorpayRefundId}
+                    </span>
+
+                    <button
+                      disabled={!selectedOrder.razorpayRefundId}
+                      onClick={() => {
+                        if (!selectedOrder.razorpayRefundId) return;
+                        navigator.clipboard.writeText(
+                          selectedOrder.razorpayRefundId,
+                        );
+                        toast.success("Copied!");
+                      }}
+                      className="text-red-400 text-[10px] cursor-pointer hover:underline"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                )}
+
+                {selectedOrder.refundedAt && (
+                  <p className="text-xs text-red-400 mt-1">
+                    Refunded on: {formatDate(selectedOrder.refundedAt)}
+                  </p>
+                )}
               </div>
 
-              <div>
-                <p className="text-gray-500">Order Status</p>
-                <p>{selectedOrder.orderStatus}</p>
+              {/* Shipping */}
+              <div className="p-4 border rounded-lg">
+                <h3 className="font-semibold mb-2 text-sm text-(--color-text-muted)">
+                  Shipping
+                </h3>
+
+                <p className="text-sm font-medium">
+                  {selectedOrder.shippingAddress?.fullName}
+                </p>
+
+                <p className="text-xs text-(--color-text-muted)">
+                  {selectedOrder.shippingAddress?.addressLine1}
+                </p>
+
+                <p className="text-xs text-(--color-text-muted)">
+                  {selectedOrder.shippingAddress?.city},{" "}
+                  {selectedOrder.shippingAddress?.state}
+                </p>
+
+                <p className="text-xs text-(--color-text-muted)">
+                  {selectedOrder.shippingAddress?.postalCode},{" "}
+                  {selectedOrder.shippingAddress?.country}
+                </p>
               </div>
             </div>
+
+            <div className="border-t border-(--color-border) my-5"></div>
 
             {/* Items */}
             <div>
               <h3 className="font-semibold mb-2">Items</h3>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {selectedOrder.items?.map((item, idx) => (
                   <div
-                    key={idx}
-                    className="flex justify-between text-sm border p-2 rounded"
+                    key={item.id || idx}
+                    className="flex justify-between items-center border rounded-lg p-3 bg-(--color-background-alt) hover:shadow-sm transition"
                   >
-                    <span>
-                      {item.product?.name || "Product"} × {item.quantity}
-                    </span>
-                    <span>{formatCurrency(item.price * item.quantity)}</span>
+                    <div>
+                      <p className="font-medium text-sm">
+                        {item?.name || "Product"}
+                      </p>
+                      <p className="text-xs text-(--color-text-muted)">
+                        Qty: {item.quantity}
+                      </p>
+                    </div>
+
+                    <p className="font-semibold text-sm">
+                      {formatCurrency(item.price * item.quantity)}
+                    </p>
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="mt-6 flex justify-between items-center border-t pt-4">
+              <span className="text-sm text-(--color-text-muted)">Total</span>
+              <span className="text-xl font-bold text-(--color-primary)">
+                {formatCurrency(selectedOrder.totalAmount)}
+              </span>
             </div>
           </div>
         </div>

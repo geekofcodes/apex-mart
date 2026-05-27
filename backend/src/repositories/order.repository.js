@@ -157,12 +157,15 @@ class OrderRepository {
 
     return {
       id: order.id,
-      id: order.id,
       orderNumber: order.orderNumber,
+
+      razorpayOrderId: order.razorpayOrderId ?? null,
+      razorpayPaymentId: order.razorpayPaymentId ?? null,
+      razorpayRefundId: order.razorpayRefundId ?? null,
+      refundedAt: order.refundedAt ?? null,
 
       user: order.user
         ? {
-            id: order.user.id,
             id: order.user.id,
             name: order.user.name,
             email: order.user.email,
