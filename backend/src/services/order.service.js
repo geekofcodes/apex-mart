@@ -100,7 +100,7 @@ class OrderService {
    *  5. Delegate atomic creation to repository (transaction inside)
    */
   async placeOrder(userId, orderData) {
-    const { shippingAddress, paymentMethod } = orderData;
+    const { shippingAddress, paymentMethod, razorpayPaymentId } = orderData;
 
     // Validate inputs up-front — fail fast before any DB work
     this.#validateShippingAddress(shippingAddress);
@@ -162,9 +162,18 @@ class OrderService {
           initialOrderStatus: isRazorpay ? "CONFIRMED" : "PENDING",
           paidAt: isRazorpay ? new Date() : null,
           razorpayOrderId: orderData.razorpayOrderId ?? null,
-          razorpayPaymentId: orderData.razorpayPaymentId ?? null,
         },
       );
+      if (isRazorpay && razorpayPaymentId) {
+        await orderRepository.updatePaymentAtomic(order.id, {
+          paymentMethod: "RAZORPAY",
+          transactionId: razorpayPaymentId,
+          paymentStatus: PAYMENT_STATUS.COMPLETED,
+          orderStatus: ORDER_STATUS.PROCESSING,
+          paidAt: new Date(),
+          amount: order.totalPrice,
+        });
+      }
     } catch (err) {
       // Surface repository-thrown business errors as 400 Bad Request.
       // These include: insufficient stock, missing product, invalid id, empty order.
@@ -212,7 +221,6 @@ class OrderService {
       paymentStatus: "PAID",
       orderStatus: "CONFIRMED",
       paidAt: new Date(),
-      ...(razorpayPaymentId && { razorpayPaymentId }),
     });
   }
 
@@ -254,9 +262,28 @@ class OrderService {
    * @param {string} orderId          - Internal CUID of the order
    * @param {string} razorpayRefundId - Razorpay refund ID (rfnd_xxx)
    */
+  // async markOrderAsRefunded(orderId, razorpayRefundId) {
+  //   if (!orderId) return;
+
+  //   await orderRepository.updatePaymentAtomic(orderId, {
+  //     paymentMethod: "RAZORPAY",
+  //     paymentGatewayId: razorpayRefundId, // 🔥 THIS FIXES YOUR ISSUE
+  //     paymentStatus: PAYMENT_STATUS.REFUNDED,
+  //     orderStatus: ORDER_STATUS.CANCELLED,
+  //   });
+  // }
+
   async markOrderAsRefunded(orderId, razorpayRefundId) {
-    if (!orderId) return;
-    await orderRepository.markRefunded(orderId, razorpayRefundId);
+    const order = await orderRepository.findById(orderId);
+
+    await orderRepository.updatePaymentAtomic(orderId, {
+      paymentMethod: "RAZORPAY",
+      transactionId: order.payment?.transactionId,
+      paymentGatewayId: razorpayRefundId,
+      paymentStatus: PAYMENT_STATUS.REFUNDED,
+      orderStatus: ORDER_STATUS.CANCELLED,
+      amount: order.totalPrice,
+    });
   }
 
   // ─── Read (continued) ─────────────────────────────────────────────────────

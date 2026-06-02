@@ -17,6 +17,8 @@ import { HTTP_STATUS } from "../utils/constants.js";
 export const placeOrder = asyncHandler(async (req, res) => {
   const order = await orderService.placeOrder(req.user.id, req.body);
 
+  console.log("REQ BODY:", req.body);
+
   return ApiResponse.success(
     res,
     "Order placed successfully",

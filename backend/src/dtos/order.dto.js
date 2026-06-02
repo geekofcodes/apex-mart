@@ -20,9 +20,9 @@ class OrderDTO {
     return {
       id: item.id,
       productId: item.product, // raw FK — useful for linking, not rendering
-      name: item.name   || "Product", // productNameSnapshot
-      image: item.image || null,      // imageSnapshot
-      price: item.price,              // priceSnapshot
+      name: item.name || "Product", // productNameSnapshot
+      image: item.image || null, // imageSnapshot
+      price: item.price, // priceSnapshot
       quantity: item.quantity,
       total: item.price * item.quantity,
     };
@@ -51,8 +51,8 @@ class OrderDTO {
       paidAt: order.paidAt,
       deliveredAt: order.deliveredAt,
       razorpayOrderId: order.razorpayOrderId ?? null,
-      razorpayPaymentId: order.razorpayPaymentId ?? null,
-      razorpayRefundId: order.razorpayRefundId ?? null,
+      razorpayPaymentId: order.payment?.transactionId ?? null,
+      razorpayRefundId: order.payment?.paymentGatewayId ?? null,
       refundedAt: order.refundedAt ?? null,
       createdAt: order.createdAt,
     };
@@ -75,7 +75,7 @@ class OrderDTO {
       // Minimal preview — snapshot fields only, safe after product deletion
       items: (order.items ?? []).map((item) => ({
         id: item.id,
-        name: item.name   || "Product",
+        name: item.name || "Product",
         image: item.image || null,
         quantity: item.quantity,
       })),

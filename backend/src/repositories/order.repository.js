@@ -160,9 +160,9 @@ class OrderRepository {
       orderNumber: order.orderNumber,
 
       razorpayOrderId: order.razorpayOrderId ?? null,
-      razorpayPaymentId: order.razorpayPaymentId ?? null,
-      razorpayRefundId: order.razorpayRefundId ?? null,
-      refundedAt: order.refundedAt ?? null,
+      razorpayPaymentId: order.payment?.transactionId || null,
+      razorpayRefundId: order.payment?.paymentGatewayId || null,
+      refundedAt: order.refundedAt || null,
 
       user: order.user
         ? {
@@ -399,16 +399,11 @@ class OrderRepository {
         const initialOrderStatus = options.initialOrderStatus ?? "PENDING";
         const initialPaidAt = options.paidAt ?? null;
         const razorpayOrderId = options.razorpayOrderId ?? null;
-        const razorpayPaymentId = options.razorpayPaymentId ?? null;
 
         if (process.env.NODE_ENV === "development") {
           console.log(
             "[Order Repo] CREATING ORDER with razorpayOrderId:",
             razorpayOrderId,
-          );
-          console.log(
-            "[Order Repo] CREATING ORDER with razorpayPaymentId:",
-            razorpayPaymentId,
           );
         }
 
@@ -428,7 +423,6 @@ class OrderRepository {
               orderStatus: initialOrderStatus,
               paidAt: initialPaidAt,
               razorpayOrderId,
-              razorpayPaymentId,
               orderItems: { create: verifiedItems },
             },
             include: this.#include,
@@ -453,7 +447,6 @@ class OrderRepository {
                 orderStatus: initialOrderStatus,
                 paidAt: initialPaidAt,
                 razorpayOrderId,
-                razorpayPaymentId,
                 orderItems: { create: verifiedItems },
               },
               include: this.#include,
@@ -730,7 +723,11 @@ class OrderRepository {
   async findByRazorpayPaymentId(razorpayPaymentId) {
     if (!razorpayPaymentId) return null;
     return await prisma.order.findFirst({
-      where: { razorpayPaymentId },
+      where: {
+        payment: {
+          transactionId: razorpayPaymentId,
+        },
+      },
       select: { id: true, paymentStatus: true, orderStatus: true },
     });
   }
@@ -748,8 +745,12 @@ class OrderRepository {
         totalPrice: true,
         paymentStatus: true,
         orderStatus: true,
-        razorpayPaymentId: true,
-        razorpayRefundId: true,
+        payment: {
+          select: {
+            transactionId: true,
+            paymentGatewayId: true,
+          },
+        },
       },
     });
   }
@@ -766,7 +767,6 @@ class OrderRepository {
       data: {
         paymentStatus: "REFUNDED",
         orderStatus: "CANCELLED",
-        razorpayRefundId: razorpayRefundId ?? null,
         refundedAt: new Date(),
       },
     });

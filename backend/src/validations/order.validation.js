@@ -68,13 +68,12 @@ export const createOrderSchema = Joi.object({
       "any.required": "Payment method is required",
     }),
 
+  razorpayPaymentId: Joi.string().optional(),
+  razorpayOrderId: Joi.string().optional(),
+
   tax: Joi.number().min(0).optional().default(0),
 
   shippingFee: Joi.number().min(0).optional().default(0),
-
-  razorpayOrderId: Joi.string().optional(),
-
-  razorpayPaymentId: Joi.string().optional(),
 
   notes: Joi.string().trim().max(500).optional().messages({
     "string.max": "Notes cannot exceed 500 characters",
@@ -123,21 +122,16 @@ export const getOrdersQuerySchema = Joi.object({
   paymentStatus: Joi.string()
     .valid(...Object.values(PAYMENT_STATUS))
     .optional(),
-  userId: Joi.string()
-    .min(1)
-    .optional(),
+  userId: Joi.string().min(1).optional(),
 });
 
 /**
  * MongoDB ObjectId validation
  */
 export const objectIdSchema = Joi.object({
-  id: Joi.string()
-    .min(1)
-    .required()
-    .messages({
-      "any.required": "Order ID is required",
-    }),
+  id: Joi.string().min(1).required().messages({
+    "any.required": "Order ID is required",
+  }),
 });
 
 /**
