@@ -56,6 +56,8 @@ const Cart = () => {
     });
   }, [debouncedQuantities, cartItems, dispatch]);
 
+  console.log("Cart items:", cartItems);
+
   const handleUpdateQuantity = (productId, change) => {
     if (isUpdating) return;
 
@@ -136,7 +138,7 @@ const Cart = () => {
                   <div className="w-20 h-20 md:w-24 md:h-24 shrink-0 bg-(--color-background-alt) rounded-lg overflow-hidden border border-(--color-border)">
                     <img
                       src={
-                        item.product.images?.[0] ||
+                        item.product.images?.[0]?.url ||
                         "https://via.placeholder.com/100"
                       }
                       alt={item.product.title}
