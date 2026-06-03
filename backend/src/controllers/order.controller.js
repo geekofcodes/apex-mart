@@ -15,9 +15,15 @@ import { HTTP_STATUS } from "../utils/constants.js";
  * @access  Private
  */
 export const placeOrder = asyncHandler(async (req, res) => {
-  const order = await orderService.placeOrder(req.user.id, req.body);
+  const { shippingAddress, paymentMethod, razorpayOrderId, razorpayPaymentId } =
+    req.body;
 
-  console.log("REQ BODY:", req.body);
+  const order = await orderService.placeOrder(req.user.id, {
+    shippingAddress,
+    paymentMethod,
+    razorpayOrderId,
+    razorpayPaymentId,
+  });
 
   return ApiResponse.success(
     res,
